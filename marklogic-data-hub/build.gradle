@@ -36,6 +36,9 @@ dependencies {
         exclude group: 'org.springframework', module: 'http'
     }
 
+    // Adding this because it's not being added to the runtime classpath via a transitive dependency from ml-app-deployer
+    compile 'org.jdom:jdom2:2.0.6'
+
     compile group: 'org.springframework.boot', name: 'spring-boot', version: '2.1.3.RELEASE'
     compile group: 'org.springframework.integration', name: 'spring-integration-http', version: '5.1.3.RELEASE'
     compile group: 'org.springframework.boot', name: 'spring-boot-autoconfigure', version: '2.1.3.RELEASE'
@@ -51,6 +54,11 @@ dependencies {
     //https://github.com/jaegertracing/jaeger-client-java/tree/master/jaeger-core
     compile("io.jaegertracing:jaeger-core:0.35.4")
     compile("io.jaegertracing:jaeger-thrift:0.35.4")
+
+    compile (
+        'com.amazonaws:aws-lambda-java-core:1.1.0',
+        'com.amazonaws:aws-lambda-java-events:1.1.0'
+    )
 
     // For installer program
     implementation "com.beust:jcommander:1.72"
@@ -115,6 +123,14 @@ task clientJar(type: Jar) {
     with jar
 }
 build.dependsOn clientJar
+
+task buildLambdaZip(type: Zip) {
+    from compileJava
+    from processResources
+    into('lib') {
+        from configurations.compileClasspath
+    }
+}
 
 node {
   // Version of node to use.
