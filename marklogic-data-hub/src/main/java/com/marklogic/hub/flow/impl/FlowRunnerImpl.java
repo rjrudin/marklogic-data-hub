@@ -2,12 +2,10 @@ package com.marklogic.hub.flow.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.marklogic.client.io.JacksonHandle;
 import com.marklogic.hub.FlowManager;
-import com.marklogic.hub.flow.Flow;
-import com.marklogic.hub.flow.FlowRunner;
-import com.marklogic.hub.flow.FlowStatusListener;
-import com.marklogic.hub.flow.RunFlowResponse;
-import com.marklogic.hub.impl.HubConfigImpl;
+import com.marklogic.hub.HubConfig;
+import com.marklogic.hub.flow.*;
 import com.marklogic.hub.job.JobDocManager;
 import com.marklogic.hub.job.JobStatus;
 import com.marklogic.hub.step.RunStepResponse;
@@ -31,7 +29,7 @@ import java.util.stream.Collectors;
 public class FlowRunnerImpl implements FlowRunner{
 
     @Autowired
-    private HubConfigImpl hubConfig;
+    private HubConfig hubConfig;
 
     @Autowired
     private FlowManager flowManager;
@@ -61,6 +59,14 @@ public class FlowRunnerImpl implements FlowRunner{
     private ThreadPoolExecutor threadPool;
     private JobDocManager jobDocManager;
     private boolean disableJobOutput = false;
+
+    public FlowRunnerImpl() {
+    }
+
+    public FlowRunnerImpl(HubConfig hubConfig, StepRunnerFactory stepRunnerFactory) {
+        this.hubConfig = hubConfig;
+        this.stepRunnerFactory = stepRunnerFactory;
+    }
 
     @Override
     public FlowRunner onStatusChanged(FlowStatusListener listener) {
@@ -93,21 +99,34 @@ public class FlowRunnerImpl implements FlowRunner{
     }
 
     public RunFlowResponse runFlow(String flowName, List<String> stepNums, String jobId, Map<String, Object> options, Map<String, Object> stepConfig) {
+        Flow flow = flowManager.getFlow(flowName);
+        if (flow == null) {
+            throw new RuntimeException("Flow " + flowName + " not found");
+        }
+        return runFlow(flow, stepNums, jobId, options, stepConfig);
+    }
+
+    @Override
+    public RunFlowResponse runFlow(FlowInputs flowInputs) {
+        Flow flow;
+        try {
+            JsonNode jsonFlow = hubConfig.newStagingClient().newJSONDocumentManager().read("/flows/" + flowInputs.getFlowName() + ".flow.json", new JacksonHandle()).get();
+            flow = new FlowImpl().deserialize(jsonFlow);
+        } catch (Exception ex) {
+            throw new RuntimeException("Unable to retrieve flow with name: " + flowInputs.getFlowName(), ex);
+        }
+        return runFlow(flow, flowInputs.getSteps(), flowInputs.getJobId(), flowInputs.getOptions(), flowInputs.getStepConfig());
+    }
+
+    public RunFlowResponse runFlow(Flow flow, List<String> stepNums, String jobId, Map<String, Object> options, Map<String, Object> stepConfig) {
         if (options != null && options.containsKey("disableJobOutput")) {
             disableJobOutput = Boolean.parseBoolean(options.get("disableJobOutput").toString());
         } else {
             disableJobOutput = false;
         }
 
-        Flow flow = flowManager.getFlow(flowName);
-
-        //Validation of flow, provided steps
-        if (flow == null){
-            throw new RuntimeException("Flow " + flowName + " not found");
-        }
-
         if(stepNums == null) {
-            stepNums = new ArrayList<String>(flow.getSteps().keySet());
+            stepNums = new ArrayList<>(flow.getSteps().keySet());
         }
 
         if(stepConfig != null && !stepConfig.isEmpty()) {
@@ -254,9 +273,6 @@ public class FlowRunnerImpl implements FlowRunner{
                                 listener.onStatusChanged(jobId, runningStep, jobStatus, percentComplete, successfulEvents, failedEvents, runningStep.getName() + " : " + message);
                             });
                         });
-                    //If step doc doesn't have batchnum and thread count specified, fallback to flow's values.
-                    Map<String,Step> steps = runningFlow.getSteps();
-                    Step step = steps.get(stepNum);
 
                     //If property values are overriden in UI, use those values over any other.
                     if(flow.getOverrideStepConfig() != null) {

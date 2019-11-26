@@ -8,6 +8,7 @@ import java.util.concurrent.TimeoutException;
 
 public interface FlowRunner {
 
+    RunFlowResponse runFlow(FlowInputs flowInputs);
 
     /**
      * Runs the flow, with a specific set of steps, with all custom settings
