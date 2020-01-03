@@ -6,11 +6,13 @@ import com.marklogic.client.io.JacksonHandle;
 import com.marklogic.hub.FlowManager;
 import com.marklogic.hub.HubConfig;
 import com.marklogic.hub.flow.*;
+import com.marklogic.hub.flow.Flow;
 import com.marklogic.hub.job.JobDocManager;
 import com.marklogic.hub.job.JobStatus;
 import com.marklogic.hub.step.RunStepResponse;
 import com.marklogic.hub.step.StepRunner;
 import com.marklogic.hub.step.StepRunnerFactory;
+import com.marklogic.hub.step.impl.QueryStepRunner;
 import com.marklogic.hub.step.impl.Step;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,6 +121,21 @@ public class FlowRunnerImpl implements FlowRunner{
     }
 
     public RunFlowResponse runFlow(Flow flow, List<String> stepNums, String jobId, Map<String, Object> options, Map<String, Object> stepConfig) {
+        FlowInputs inputs = new FlowInputs(flow.getName());
+        inputs.setSteps(stepNums);
+        inputs.setJobId(jobId);
+        inputs.setOptions(options);
+        inputs.setStepConfig(stepConfig);
+        return runFlow(flow, inputs);
+    }
+
+    protected RunFlowResponse runFlow(Flow flow, FlowInputs flowInputs) {
+        logger.info("Running flow: " + flow.getName());
+        List<String> stepNums = flowInputs.getSteps();
+        String jobId = flowInputs.getJobId();
+        Map<String, Object> options = flowInputs.getOptions();
+        Map<String, Object> stepConfig = flowInputs.getStepConfig();
+
         if (options != null && options.containsKey("disableJobOutput")) {
             disableJobOutput = Boolean.parseBoolean(options.get("disableJobOutput").toString());
         } else {
@@ -159,12 +176,12 @@ public class FlowRunnerImpl implements FlowRunner{
         //add jobId to a queue
         jobQueue.add(jobId);
         if(!isRunning.get()){
-            initializeFlow(jobId);
+            initializeFlow(jobId, flowInputs);
         }
         return response;
     }
 
-    private void initializeFlow(String jobId) {
+    private void initializeFlow(String jobId, FlowInputs flowInputs) {
         //Reset the states to initial values before starting a flow run
         isRunning.set(true);
         isJobSuccess.set(true);
@@ -176,10 +193,9 @@ public class FlowRunnerImpl implements FlowRunner{
             jobDocManager = new JobDocManager(hubConfig.newJobDbClient());
         }
         if(threadPool == null || threadPool.isTerminated()) {
-            threadPool = new CustomPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS
-                , new LinkedBlockingQueue<Runnable>());
+            threadPool = new CustomPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), flowInputs);
         }
-        threadPool.execute(new FlowRunnerTask(runningFlow, runningJobId));
+        threadPool.execute(new FlowRunnerTask(runningFlow, runningJobId, flowInputs));
     }
 
     public void stopJob(String jobId) {
@@ -204,20 +220,23 @@ public class FlowRunnerImpl implements FlowRunner{
         private String jobId;
         private Flow flow;
         private Queue<String> stepQueue;
+        private FlowInputs flowInputs;
 
         public Queue<String> getStepQueue() {
             return stepQueue;
         }
 
-        FlowRunnerTask(Flow flow, String jobId) {
+        FlowRunnerTask(Flow flow, String jobId, FlowInputs flowInputs) {
             this.jobId = jobId;
             this.flow = flow;
+            this.flowInputs = flowInputs;
         }
 
-        FlowRunnerTask(Flow flow, String jobId, Queue<String> stepQueue) {
+        FlowRunnerTask(Flow flow, String jobId, FlowInputs flowInputs, Queue<String> stepQueue) {
             this.jobId = jobId;
             this.flow = flow;
             this.stepQueue = stepQueue;
+            this.flowInputs = flowInputs;
         }
 
         @Override
@@ -277,6 +296,12 @@ public class FlowRunnerImpl implements FlowRunner{
                     //If property values are overriden in UI, use those values over any other.
                     if(flow.getOverrideStepConfig() != null) {
                         stepRunner.withStepConfig(flow.getOverrideStepConfig());
+                    }
+
+                    // I think FlowInputs should be an argument in the stepRunner.run call, but I don't want to change
+                    // any interface right now. So checking for the concrete QueryStepRunner type here instead.
+                    if (stepRunner instanceof QueryStepRunner) {
+                        ((QueryStepRunner)stepRunner).setFlowInputs(flowInputs);
                     }
 
                     stepResp = stepRunner.run();
@@ -413,7 +438,7 @@ public class FlowRunnerImpl implements FlowRunner{
                 flowMap.remove(jobId);
                 flowResp.remove(runningJobId);
                 if (!jobQueue.isEmpty()) {
-                    initializeFlow((String) jobQueue.peek());
+                    initializeFlow(jobQueue.peek(), flowInputs);
                 } else {
                     isRunning.set(false);
                     threadPool.shutdownNow();
@@ -439,9 +464,11 @@ public class FlowRunnerImpl implements FlowRunner{
     }
 
     class CustomPoolExecutor extends ThreadPoolExecutor {
+        private FlowInputs flowInputs;
         public CustomPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime,
-                                    TimeUnit unit, BlockingQueue<Runnable> workQueue) {
+                                    TimeUnit unit, BlockingQueue<Runnable> workQueue, FlowInputs flowInputs) {
             super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
+            this.flowInputs = flowInputs;
         }
 
         @Override
@@ -465,7 +492,7 @@ public class FlowRunnerImpl implements FlowRunner{
                 if(((FlowRunnerTask)r).getStepQueue().isEmpty() || runningFlow.isStopOnError()) {
                     jobQueue.remove();
                     if (!jobQueue.isEmpty()) {
-                        initializeFlow((String) jobQueue.peek());
+                        initializeFlow(jobQueue.peek(), flowInputs);
                     } else {
                         isRunning.set(false);
                         threadPool.shutdownNow();
@@ -474,7 +501,7 @@ public class FlowRunnerImpl implements FlowRunner{
                 //Run the next step
                 else {
                     if(!(threadPool != null && threadPool.isTerminating())) {
-                        threadPool.execute(new FlowRunnerTask(runningFlow, runningJobId,((FlowRunnerTask)r).getStepQueue()));
+                        threadPool.execute(new FlowRunnerTask(runningFlow, runningJobId, flowInputs, ((FlowRunnerTask)r).getStepQueue()));
                     }
                 }
             }

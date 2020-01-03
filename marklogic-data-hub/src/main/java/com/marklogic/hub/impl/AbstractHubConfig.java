@@ -29,6 +29,8 @@ public abstract class AbstractHubConfig extends LoggingObject implements HubConf
 
     protected AppConfig appConfig;
 
+    protected DatabaseClient stagingClient;
+
     protected String host = "localhost";
 
     protected String stagingDbName = "data-hub-STAGING";
@@ -114,6 +116,10 @@ public abstract class AbstractHubConfig extends LoggingObject implements HubConf
     }
 
     public DatabaseClient newStagingClient(String dbName) {
+        if (stagingClient != null) {
+            return stagingClient;
+        }
+
         AppConfig appConfig = getAppConfig();
         DatabaseClientConfig config = new DatabaseClientConfig(appConfig.getHost(), stagingPort, getMlUsername(), getMlPassword());
         config.setDatabase(dbName);
@@ -1091,4 +1097,12 @@ public abstract class AbstractHubConfig extends LoggingObject implements HubConf
         return getInfo();
     }
 
+    @JsonIgnore
+    public DatabaseClient getStagingClient() {
+        return stagingClient;
+    }
+
+    public void setStagingClient(DatabaseClient stagingClient) {
+        this.stagingClient = stagingClient;
+    }
 }

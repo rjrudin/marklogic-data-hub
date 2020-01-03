@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.marklogic.hub.DatabaseKind;
 import com.marklogic.hub.HubConfig;
 import com.marklogic.hub.flow.Flow;
-import com.marklogic.hub.impl.StepDefinitionManagerImpl;
 import com.marklogic.hub.step.impl.QueryStepRunner;
 import com.marklogic.hub.step.impl.Step;
 import com.marklogic.hub.step.impl.WriteStepRunner;
@@ -22,12 +21,7 @@ public class StepRunnerFactory {
     @Autowired
     private StepDefinitionProvider stepDefinitionProvider;
 
-    private StepRunner stepRunner;
-    private int batchSize = 100;
-    private int threadCount = 4;
-    private String sourceDatabase;
-    private String targetDatabase;
-
+    // Needed for use with Spring, where the HubConfig is autowired
     public StepRunnerFactory() {
     }
 
@@ -40,6 +34,8 @@ public class StepRunnerFactory {
         Step step = steps.get(stepNum);
         StepDefinition stepDef = stepDefinitionProvider.getStepDefinition(step.getStepDefinitionName(), step.getStepDefinitionType());
 
+        StepRunner stepRunner;
+
         switch (step.getStepDefinitionType()) {
             case INGESTION:
                 stepRunner = new WriteStepRunner(hubConfig);
@@ -50,6 +46,7 @@ public class StepRunnerFactory {
         stepRunner = stepRunner.withFlow(flow)
             .withStep(stepNum);
 
+        int batchSize = 100;
         if(step.getBatchSize() != 0) {
             batchSize = step.getBatchSize();
         }
@@ -61,6 +58,7 @@ public class StepRunnerFactory {
         }
         stepRunner.withBatchSize(batchSize);
 
+        int threadCount = 4;
         if(step.getThreadCount() != 0) {
             threadCount = step.getThreadCount();
         }
@@ -73,6 +71,7 @@ public class StepRunnerFactory {
 
         stepRunner.withThreadCount(threadCount);
 
+        String sourceDatabase;
         if(step.getOptions().get("sourceDatabase") != null) {
             sourceDatabase = ((TextNode)step.getOptions().get("sourceDatabase")).asText();
         }
@@ -84,6 +83,7 @@ public class StepRunnerFactory {
         }
         stepRunner.withSourceClient(hubConfig.newStagingClient(sourceDatabase));
 
+        String targetDatabase;
         if(step.getOptions().get("targetDatabase") != null) {
             targetDatabase = ((TextNode)step.getOptions().get("targetDatabase")).asText();
         }

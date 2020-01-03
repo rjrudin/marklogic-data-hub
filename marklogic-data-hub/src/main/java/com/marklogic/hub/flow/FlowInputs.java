@@ -1,9 +1,6 @@
 package com.marklogic.hub.flow;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class FlowInputs {
 
@@ -12,6 +9,7 @@ public class FlowInputs {
     private String jobId;
     private Map<String, Object> options;
     private Map<String, Object> stepConfig;
+    private Collection<String> uris;
 
     public FlowInputs() {
     }
@@ -23,6 +21,27 @@ public class FlowInputs {
     public FlowInputs(String flowName, String... steps) {
         this.flowName = flowName;
         this.steps = Arrays.asList(steps);
+    }
+
+    public FlowInputs(FlowInputs other) {
+        this.flowName = other.flowName;
+        if (other.steps != null) {
+            this.steps = new ArrayList<>();
+            this.steps.addAll(other.steps);
+        }
+        this.jobId = other.jobId;
+        if (other.options != null) {
+            this.options = new HashMap<>();
+            this.options.putAll(other.options);
+        }
+        if (other.stepConfig != null) {
+            this.stepConfig = new HashMap<>();
+            this.stepConfig.putAll(other.stepConfig);
+        }
+        if (other.uris != null) {
+            this.uris = new ArrayList<>();
+            this.uris.addAll(other.uris);
+        }
     }
 
     public String getFlowName() {
@@ -63,5 +82,13 @@ public class FlowInputs {
 
     public void setStepConfig(Map<String, Object> stepConfig) {
         this.stepConfig = stepConfig;
+    }
+
+    public Collection<String> getUris() {
+        return uris;
+    }
+
+    public void setUris(Collection<String> uris) {
+        this.uris = uris;
     }
 }

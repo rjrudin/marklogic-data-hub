@@ -32,6 +32,7 @@ import com.marklogic.hub.collector.DiskQueue;
 import com.marklogic.hub.collector.impl.CollectorImpl;
 import com.marklogic.hub.error.DataHubConfigurationException;
 import com.marklogic.hub.flow.Flow;
+import com.marklogic.hub.flow.FlowInputs;
 import com.marklogic.hub.job.JobDocManager;
 import com.marklogic.hub.job.JobStatus;
 import com.marklogic.hub.step.*;
@@ -76,7 +77,8 @@ public class QueryStepRunner implements StepRunner {
     private QueryBatcher queryBatcher = null;
     private JobDocManager jobDocManager;
     private AtomicBoolean isStopped = new AtomicBoolean(false) ;
-    private StepDefinition stepDef;
+
+    private FlowInputs flowInputs;
 
     public QueryStepRunner(HubConfig hubConfig) {
         this.hubConfig = hubConfig;
@@ -96,11 +98,6 @@ public class QueryStepRunner implements StepRunner {
 
     public StepRunner withJobId(String jobId) {
         this.jobId = jobId;
-        return this;
-    }
-
-    public StepRunner withStepDefinition(StepDefinition stepDefinition){
-        this.stepDef = stepDefinition;
         return this;
     }
 
@@ -140,17 +137,9 @@ public class QueryStepRunner implements StepRunner {
             throw new DataHubConfigurationException("Flow has to be set before setting options");
         }
         ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> stepDefMap = null;
-        if(stepDef != null) {
-            stepDefMap = mapper.convertValue(stepDef.getOptions(), Map.class);
-        }
         Map<String, Object> stepMap = mapper.convertValue(this.flow.getStep(step).getOptions(), Map.class);
         Map<String,Object> flowMap = mapper.convertValue(flow.getOptions(), Map.class);
         Map<String, Object> combinedOptions = new HashMap<>();
-
-        if(stepDefMap != null){
-            combinedOptions.putAll(stepDefMap);
-        }
         if(flowMap != null) {
             combinedOptions.putAll(flowMap);
         }
@@ -256,24 +245,36 @@ public class QueryStepRunner implements StepRunner {
             jobDocManager = null;
         }
 
-        try {
-            uris = runCollector();
-        } catch (Exception e) {
-            runStepResponse.setCounts(0,0, 0, 0, 0)
-                .withStatus(JobStatus.FAILED_PREFIX + step);
-            StringWriter errors = new StringWriter();
-            e.printStackTrace(new PrintWriter(errors));
-            runStepResponse.withStepOutput(errors.toString());
-            if (!disableJobOutput) {
-                JsonNode jobDoc = null;
-                jobDoc = jobDocManager.postJobs(jobId, JobStatus.FAILED_PREFIX + step, step, null, runStepResponse);
-                try {
-                    return StepRunnerUtil.getResponse(jobDoc, step);
-                } catch (Exception ignored) {
-                }
+        // See if the caller passed in a list of URIs to process
+        if (flowInputs != null) {
+            Collection<String> inputUris = flowInputs.getUris();
+            if (inputUris != null) {
+                uris = inputUris;
             }
-            return runStepResponse;
         }
+
+        // If the client didn't provide URIs, then run the collector to determine the URIs to process
+        if (uris == null) {
+            try {
+                uris = runCollector();
+            } catch (Exception e) {
+                runStepResponse.setCounts(0, 0, 0, 0, 0)
+                    .withStatus(JobStatus.FAILED_PREFIX + step);
+                StringWriter errors = new StringWriter();
+                e.printStackTrace(new PrintWriter(errors));
+                runStepResponse.withStepOutput(errors.toString());
+                if (!disableJobOutput) {
+                    JsonNode jobDoc = null;
+                    jobDoc = jobDocManager.postJobs(jobId, JobStatus.FAILED_PREFIX + step, step, null, runStepResponse);
+                    try {
+                        return StepRunnerUtil.getResponse(jobDoc, step);
+                    } catch (Exception ignored) {
+                    }
+                }
+                return runStepResponse;
+            }
+        }
+
         return this.runHarmonizer(runStepResponse,uris);
     }
 
@@ -577,5 +578,9 @@ public class QueryStepRunner implements StepRunner {
             return resp;
         }
 
+    }
+
+    public void setFlowInputs(FlowInputs flowInputs) {
+        this.flowInputs = flowInputs;
     }
 }

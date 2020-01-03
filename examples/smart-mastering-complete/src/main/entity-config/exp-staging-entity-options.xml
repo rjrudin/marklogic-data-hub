@@ -3,6 +3,8 @@
   <search:constraint name="Collection">
     <search:collection>
       <search:facet-option>limit=25</search:facet-option>
+      <search:facet-option>frequency-order</search:facet-option>
+      <search:facet-option>descending</search:facet-option>
     </search:collection>
   </search:constraint>
   <search:constraint name="createdByJob">
@@ -14,6 +16,8 @@
     <search:range>
       <search:field name="datahubCreatedByStep"/>
       <search:facet-option>limit=25</search:facet-option>
+      <search:facet-option>frequency-order</search:facet-option>
+      <search:facet-option>descending</search:facet-option>
     </search:range>
   </search:constraint>
   <search:constraint name="createdByJobWord">
@@ -30,6 +34,8 @@
     <search:range>
       <search:field name="datahubCreatedInFlow"/>
       <search:facet-option>limit=25</search:facet-option>
+      <search:facet-option>frequency-order</search:facet-option>
+      <search:facet-option>descending</search:facet-option>
     </search:range>
   </search:constraint>
   <search:constraint name="entity-type">
@@ -41,6 +47,8 @@
     <search:range type="xs:string" facet="true" collation="http://marklogic.com/collation/codepoint">
       <search:element ns="" name="FirstName" xmlns:es="http://marklogic.com/entity-services"/>
       <search:facet-option>limit=25</search:facet-option>
+      <search:facet-option>frequency-order</search:facet-option>
+      <search:facet-option>descending</search:facet-option>
     </search:range>
   </search:constraint>
   <search:values name="Person">
