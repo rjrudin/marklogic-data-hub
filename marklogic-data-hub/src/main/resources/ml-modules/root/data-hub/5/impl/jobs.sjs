@@ -59,9 +59,14 @@ class Jobs {
     xdmp.trace(JOBS_EVENT, "Starting step " + stepNumber + " for job " + job.job.jobId);
     job.job.jobStatus = "running step " + stepNumber;
     job.job.lastAttemptedStep = stepNumber;
-    job.job.stepResponses[stepNumber] = {};
-    job.job.stepResponses[stepNumber].stepStartTime = fn.currentDateTime();
-    job.job.stepResponses[stepNumber].status = "running step " + stepNumber;
+    job.job.stepResponses[stepNumber] = {
+      stepStartTime: fn.currentDateTime(),
+      status: "running step " + stepNumber,
+      totalEvents: 0,
+      failedEvents: 0,
+      successfulBatches: 0,
+      failedBatches: 0
+    };
     return job;
   }
 
@@ -99,36 +104,46 @@ class Jobs {
    *
    * @param jobDoc
    * @param stepNumber
-   * @param stepResponse
    * @return {*}
    */
-  buildWithCompletedStep(jobDoc, stepNumber, stepResponse) {
+  buildWithCompletedStep(jobDoc, stepNumber) {
     xdmp.trace(JOBS_EVENT, "Completing step " + stepNumber + " for job " + jobDoc.job.jobId);
     let job = jobDoc.job;
     job.jobStatus = "completed step " + stepNumber;
     job.lastAttemptedStep = stepNumber;
     job.lastCompletedStep = stepNumber;
+    let stepResponse = job.stepResponses[stepNumber];
     stepResponse.status = job.jobStatus;
     stepResponse.stepEndTime = fn.currentDateTime();
-    job.stepResponses[stepNumber] = stepResponse;
     return jobDoc;
   }
 
   /**
-   * Update the job as having completed with the given status, and then save it.
+   * Update the status of the job based on the step responses in it, and then save it.
    *
    * @param jobDoc
-   * @param status
    * @return {*}
    */
-  // finished, finished_with_errors, failed, canceled, stop-on-error
-  completeJob(jobDoc, status) {
-    xdmp.trace(JOBS_EVENT, "Finishing job " + jobDoc.job.jobId + " with status " + status);
+  completeJob(jobDoc) {
+    xdmp.trace(JOBS_EVENT, "Completing job " + jobDoc.job.jobId);
     let job = jobDoc.job;
-    job.jobStatus = status;
+    job.jobStatus = this.determineJobStatus(jobDoc);
     job.timeEnded = fn.currentDateTime();
     this.saveJob(jobDoc);
     return jobDoc;
+  }
+
+  determineJobStatus(jobDoc) {
+    const stepNumbers = Object.keys(jobDoc.job.stepResponses);
+    const failedSteps = stepNumbers.filter(stepNumber => {
+      let response = jobDoc.job.stepResponses[stepNumber];
+      return response.totalEvents > response.failedEvents;
+    });
+    if (failedSteps.length > 0) {
+      if (stepNumbers.length > failedSteps.length) return "finished_with_errors";
+      return "failed";
+    }
+    return "finished";
   }
 
   buildJobPermissions(config) {

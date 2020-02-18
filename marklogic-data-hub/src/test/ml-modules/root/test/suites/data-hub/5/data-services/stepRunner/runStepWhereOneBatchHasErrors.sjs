@@ -19,7 +19,7 @@ let results = stepRunner.runSteps(workUnit, endpointState).toArray();
 endpointState = results[0];
 let batchResponse = results[1];
 
-let stepResponse = endpointState.stepResponse;
+let stepResponse = endpointState.job.stepResponses["1"];
 let assertions = [
   test.assertEqual("/content/person2.json", endpointState.lastProcessedItem),
   test.assertEqual("job123", endpointState.jobId),
@@ -45,7 +45,7 @@ let assertions = [
 results = stepRunner.runSteps(workUnit, endpointState).toArray();
 endpointState = results[0];
 batchResponse = results[1];
-stepResponse = endpointState.stepResponse;
+stepResponse = endpointState.job.stepResponses["1"];
 
 assertions.push(
   test.assertEqual("/content/person3.json", endpointState.lastProcessedItem),

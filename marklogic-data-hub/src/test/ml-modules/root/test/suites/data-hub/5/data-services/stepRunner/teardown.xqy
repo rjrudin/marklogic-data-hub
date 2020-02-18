@@ -5,6 +5,7 @@ import module namespace test = "http://marklogic.com/test" at "/test/test-helper
 
 ()
 (:
+hi
 hub-test:delete-artifacts($test:__CALLER_FILE__)
 hub-test:clear-jobs-database()
 :)

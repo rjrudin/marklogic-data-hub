@@ -10,15 +10,15 @@ const workUnit = {
   batchSize: 2,
   jobId: "job123"
 };
-let endpointState = {};
 
+let endpointState = {};
 
 // Process first batch for first step
 let results = stepRunner.runSteps(workUnit, endpointState).toArray();
 endpointState = results[0];
 let batchResponse = results[1];
-let stepResponse = endpointState.stepResponse;
-let job = hubTest.getFirstJobDocument().toObject().job;
+let job = endpointState.job;
+let stepResponse = job.stepResponses["1"];
 
 let assertions = [
   test.assertEqual("/content/person2.json", endpointState.lastProcessedItem),
@@ -41,8 +41,8 @@ let assertions = [
   test.assertEqual(xdmp.getCurrentUser(), job.user),
   test.assertEqual("1", job.lastAttemptedStep),
   test.assertTrue(job.timeStarted != null),
-  test.assertEqual("running step 1", job.stepResponses["1"].status),
-  test.assertTrue(job.stepResponses["1"].stepStartTime != null)
+  test.assertEqual("running step 1", stepResponse.status),
+  test.assertTrue(stepResponse.stepStartTime != null)
 ];
 
 // Process second batch for first step
@@ -69,12 +69,12 @@ assertions.push(
 // Process empty batch for first step
 results = stepRunner.runSteps(workUnit, endpointState).toArray();
 endpointState = results[0];
-job = hubTest.getFirstJobDocument().toObject().job;
+job = endpointState.job;
 stepResponse = job.stepResponses["1"];
 
+// TODO Add assertions on first step being complete!
 assertions.push(
-  test.assertTrue(endpointState.lastProcessedItem == undefined),
-  test.assertTrue(endpointState.stepResponse == undefined)
+  test.assertTrue(endpointState.lastProcessedItem == undefined)
 );
 
 

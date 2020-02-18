@@ -28,17 +28,21 @@ class StepRunner {
     const jobId = this.determineJobId(workUnit, endpointState);
     let jobMustBeSaved = false;
 
-    let job = datahub.jobs.getJobDocWithId(jobId);
+    let job = endpointState.job;
     if (!job) {
       job = datahub.jobs.newJob(flowName, jobId);
+      // Store the job data in the endpointState without the unnecessary "job" root property
+      endpointState.job = job.job;
       jobMustBeSaved = true;
+    } else {
+      // The job document is expected to be persisted with a root "job" property
+      job = {job: job};
     }
 
-    let stepResponse = endpointState.stepResponse;
-    if (!endpointState.stepResponse) {
+    let stepResponse = job.job.stepResponses[stepNumber];
+    if (!stepResponse) {
       job = datahub.jobs.buildWithStepStarted(job, stepNumber);
-      stepResponse = this.buildNewStepResponse();
-      endpointState.stepResponse = stepResponse;
+      stepResponse = job.job.stepResponses[stepNumber];
       jobMustBeSaved = true;
     }
 
@@ -52,18 +56,16 @@ class StepRunner {
 
     if (content == null || content.length < 1) {
       xdmp.trace(TRACE_EVENT, `No matching content found while running step ${stepNumber} in flow ${flowName}`);
-      job = datahub.jobs.buildWithCompletedStep(job, stepNumber, endpointState.stepResponse);
+      job = datahub.jobs.buildWithCompletedStep(job, stepNumber);
 
       const stepIndex = stepNumbers.indexOf(stepNumber);
       if (stepIndex >= stepNumbers.length - 1) {
-        // TODO Check for errors
-        datahub.jobs.completeJob(job, "finished");
+        datahub.jobs.completeJob(job);
         // Returning null indicates that there are no items left to be processed by this step
         return null;
       } else {
         datahub.jobs.saveJob(job);
         endpointState.stepNumber = stepNumbers[stepIndex + 1];
-        delete endpointState.stepResponse;
         delete endpointState.lastProcessedItem;
         return Sequence.from([endpointState]);
       }
@@ -88,16 +90,6 @@ class StepRunner {
   determineJobId(workUnit, endpointState) {
     let jobId = workUnit.jobId ? workUnit.jobId : endpointState.jobId;
     return jobId ? jobId : datahub.hubUtils.uuid();
-  }
-
-  buildNewStepResponse() {
-    return {
-      totalEvents: 0,
-      failedEvents: 0,
-      successfulBatches: 0,
-      failedBatches: 0,
-      stepStartTime: fn.currentDateTime()
-    };
   }
 }
 
