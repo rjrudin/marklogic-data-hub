@@ -112,7 +112,8 @@ after a test is run.
 declare function clear-jobs-database()
 {
   xdmp:invoke-function(function() {
-    xdmp:collection-delete("Jobs")
+    xdmp:collection-delete("Jobs"),
+    xdmp:collection-delete("http://marklogic.com/provenance-services/record")
   },
     <options xmlns="xdmp:eval">
       <database>{xdmp:database("data-hub-JOBS")}</database>
@@ -124,6 +125,17 @@ declare function get-first-batch-document()
 {
   xdmp:invoke-function(function() {
     collection("Batch")[1]
+  },
+    <options xmlns="xdmp:eval">
+      <database>{xdmp:database("data-hub-JOBS")}</database>
+    </options>
+  )
+};
+
+declare function get-first-job-document()
+{
+  xdmp:invoke-function(function() {
+    collection("Job")[1]
   },
     <options xmlns="xdmp:eval">
       <database>{xdmp:database("data-hub-JOBS")}</database>

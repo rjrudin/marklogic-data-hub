@@ -5,7 +5,7 @@ const stepRunner = new StepRunner();
 
 const workUnit = {
   flowName: "PersonFlow",
-  steps: ["1"],
+  stepNumbers: ["1"],
   batchSize: 2,
   jobId: "job123"
 };

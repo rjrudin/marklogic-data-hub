@@ -13,6 +13,7 @@
 'use strict';
 // Batch documents can be cached because they should never be altered across transactions
 const cachedBatchDocuments = {};
+const JOBS_EVENT = "datahub-jobs";
 
 class Jobs {
 
@@ -31,27 +32,103 @@ class Jobs {
     }
   }
 
-  createJob(flowName, id = null ) {
-    let job = null;
-    if(!id) {
+  /**
+   * Construct a new job but don't save it.
+   *
+   * @param flowName
+   * @param id
+   */
+  newJob(flowName, id = null) {
+    if (!id) {
       id = this.hubutils.uuid();
     }
-    job = {
+    xdmp.trace(JOBS_EVENT, "Building new job " + id);
+    return {
       job: {
         jobId: id,
         flow: flowName,
         user: xdmp.getCurrentUser(),
-        lastAttemptedStep: 0,
-        lastCompletedStep: 0 ,
-        jobStatus: "started" ,
-        timeStarted:  fn.currentDateTime(),
-        timeEnded: "N/A",
-        stepResponses :{}
+        jobStatus: "started",
+        timeStarted: fn.currentDateTime(),
+        stepResponses: {}
       }
     };
+  }
 
-    this.hubutils.writeDocument("/jobs/"+job.job.jobId+".json", job, this.jobPermissions,  ['Jobs','Job'], this.config.JOBDATABASE);
+  buildWithStepStarted(job, stepNumber) {
+    xdmp.trace(JOBS_EVENT, "Starting step " + stepNumber + " for job " + job.job.jobId);
+    job.job.jobStatus = "running step " + stepNumber;
+    job.job.lastAttemptedStep = stepNumber;
+    job.job.stepResponses[stepNumber] = {};
+    job.job.stepResponses[stepNumber].stepStartTime = fn.currentDateTime();
+    job.job.stepResponses[stepNumber].status = "running step " + stepNumber;
     return job;
+  }
+
+  /**
+   * Updates the in-memory job based on the step starting and then saves the job.
+   *
+   * @param job
+   * @param stepNumber
+   */
+  startStep(job, stepNumber) {
+    job = this.buildWithStepStarted(job, stepNumber);
+    this.saveJob(job);
+    return job;
+  }
+
+  saveJob(job) {
+    xdmp.trace(JOBS_EVENT, "Saving job " + job.job.jobId);
+    this.hubutils.writeDocument("/jobs/"+ job.job.jobId +".json", job, this.jobPermissions, ['Jobs','Job'], this.config.JOBDATABASE);
+  }
+
+  /**
+   * Construct a new job and then save it.
+   *
+   * @param flowName
+   * @param id
+   */
+  createJob(flowName, id = null ) {
+    let jobDoc = this.newJob(flowName, id);
+    this.saveJob(jobDoc);
+    return jobDoc;
+  }
+
+  /**
+   * Updates the in-memory job based on the step being completed, but does not save it.
+   *
+   * @param jobDoc
+   * @param stepNumber
+   * @param stepResponse
+   * @return {*}
+   */
+  buildWithCompletedStep(jobDoc, stepNumber, stepResponse) {
+    xdmp.trace(JOBS_EVENT, "Completing step " + stepNumber + " for job " + jobDoc.job.jobId);
+    let job = jobDoc.job;
+    job.jobStatus = "completed step " + stepNumber;
+    job.lastAttemptedStep = stepNumber;
+    job.lastCompletedStep = stepNumber;
+    stepResponse.status = job.jobStatus;
+    stepResponse.stepEndTime = fn.currentDateTime();
+    job.stepResponses[stepNumber] = stepResponse;
+    return jobDoc;
+  }
+
+  /**
+   * Update the job as having completed with the given status, and then save it.
+   *
+   * @param jobDoc
+   * @param status
+   * @return {*}
+   */
+  // finished, finished_with_errors, failed, canceled, stop-on-error
+  completeJob(jobDoc, status) {
+    xdmp.trace(JOBS_EVENT, "Finishing job " + jobDoc.job.jobId + " with status " + status);
+    let job = jobDoc.job;
+    job.jobStatus = status;
+    job.timeEnded = fn.currentDateTime();
+    this.saveJob(jobDoc);
+    return jobDoc;
   }
 
   buildJobPermissions(config) {

@@ -1,0 +1,6 @@
+{
+  "lang": "zxx",
+  "name": "customStep1",
+  "type": "CUSTOM",
+  "modulePath": "/custom-modules/custom/customStep1/main.sjs"
+}

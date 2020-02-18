@@ -2,8 +2,10 @@ package com.marklogic.bootstrap;
 
 
 import com.marklogic.hub.ApplicationConfig;
+import com.marklogic.hub.DatabaseKind;
 import com.marklogic.hub.HubTestBase;
 import com.marklogic.mgmt.api.API;
+import com.marklogic.mgmt.api.security.Amp;
 import com.marklogic.mgmt.api.security.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,25 +39,35 @@ public class Installer extends HubTestBase implements InitializingBean {
             logger.info("Datahub is not installed");
         }
 
-        if (!isInstalled) {
+        if (!isInstalled || true) {
             dataHub.install();
 
-            User dataHubDeveloper = new User(new API(adminHubConfig.getManageClient()), "test-data-hub-developer");
+            final API api = new API(adminHubConfig.getManageClient());
+
+            User dataHubDeveloper = new User(api, "test-data-hub-developer");
             dataHubDeveloper.setPassword("password");
             dataHubDeveloper.addRole("data-hub-developer");
             dataHubDeveloper.save();
 
-            User dataHubOperator = new User(new API(adminHubConfig.getManageClient()), "test-data-hub-operator");
+            User dataHubOperator = new User(api, "test-data-hub-operator");
             dataHubOperator.setPassword("password");
             dataHubOperator.addRole("data-hub-operator");
             dataHubOperator.save();
 
-            User testAdmin = new User(new API(adminHubConfig.getManageClient()), "test-admin-for-data-hub-tests");
+            User testAdmin = new User(api, "test-admin-for-data-hub-tests");
             testAdmin.setDescription("This user is intended to be used by DHF tests that require admin or " +
                 "admin-like capabilities, such as being able to deploy a DHF application");
             testAdmin.setPassword("password");
             testAdmin.addRole("admin");
             testAdmin.save();
+
+            // Allows this function to delete provenance data documents
+            Amp amp = new Amp(api, "clear-jobs-database");
+            amp.setDocumentUri("/test/data-hub-test-helper.xqy");
+            amp.setModulesDatabase(adminHubConfig.getDbName(DatabaseKind.MODULES));
+            amp.setNamespace("http://marklogic.com/data-hub/test");
+            amp.addRole("ps-internal");
+            amp.save();
         }
 
         if (getDataHubAdminConfig().getIsProvisionedEnvironment()) {
