@@ -137,7 +137,7 @@ class Jobs {
     const stepNumbers = Object.keys(jobDoc.job.stepResponses);
     const failedSteps = stepNumbers.filter(stepNumber => {
       let response = jobDoc.job.stepResponses[stepNumber];
-      return response.totalEvents > response.failedEvents;
+      return response.failedEvents > 0 && response.totalEvents > response.failedEvents;
     });
     if (failedSteps.length > 0) {
       if (stepNumbers.length > failedSteps.length) return "finished_with_errors";
