@@ -72,9 +72,20 @@ endpointState = results[0];
 job = endpointState.job;
 stepResponse = job.stepResponses["1"];
 
-// TODO Add assertions on first step being complete!
 assertions.push(
-  test.assertTrue(endpointState.lastProcessedItem == undefined)
+  test.assertTrue(endpointState.lastProcessedItem == undefined),
+
+  test.assertEqual("completed step 1", job.jobStatus),
+  test.assertEqual("1", job.lastAttemptedStep),
+  test.assertEqual("1", job.lastCompletedStep),
+
+  test.assertEqual("completed step 1", stepResponse.status),
+  test.assertEqual(3, stepResponse.totalEvents),
+  test.assertEqual(0, stepResponse.failedEvents),
+  test.assertEqual(2, stepResponse.successfulBatches),
+  test.assertEqual(0, stepResponse.failedBatches),
+  test.assertTrue(stepResponse.stepStartTime != null),
+  test.assertTrue(stepResponse.stepEndTime != null)
 );
 
 

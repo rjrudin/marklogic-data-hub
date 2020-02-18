@@ -31,7 +31,7 @@ class StepRunner {
     let job = endpointState.job;
     if (!job) {
       job = datahub.jobs.newJob(flowName, jobId);
-      // Store the job data in the endpointState without the unnecessary "job" root property
+      // No need for two levels of "job" in the endpointState
       endpointState.job = job.job;
       jobMustBeSaved = true;
     } else {
