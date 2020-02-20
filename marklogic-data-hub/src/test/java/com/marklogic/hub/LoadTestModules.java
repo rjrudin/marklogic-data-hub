@@ -52,9 +52,9 @@ public class LoadTestModules {
 
         // Need to run GenerateFunctionMetadataCommand as well so that function metadata is generated both for
         // core mapping functions and custom functions under src/test/ml-modules/root/custom-modules.
-//        new SimpleAppDeployer(
-//            new LoadModulesCommand(),
-//            new GenerateFunctionMetadataCommand(config.newAppServicesDatabaseClient("data-hub-MODULES"), new Versions(config))
-//        ).deploy(config);
+        new SimpleAppDeployer(
+            new LoadModulesCommand(),
+            new GenerateFunctionMetadataCommand(config.newAppServicesDatabaseClient("data-hub-MODULES"), new Versions(config))
+        ).deploy(config);
     }
 }

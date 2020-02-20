@@ -25,7 +25,9 @@ class StepRunner {
 
     const stepNumber = endpointState.stepNumber || stepNumbers[0];
 
-    const jobId = this.determineJobId(workUnit, endpointState);
+    let jobId = workUnit.jobId ? workUnit.jobId : endpointState.jobId;
+    jobId = jobId ? jobId : datahub.hubUtils.uuid();
+
     let jobMustBeSaved = false;
 
     let job = endpointState.job;
@@ -85,11 +87,6 @@ class StepRunner {
 
       return Sequence.from([endpointState, batchResponse]);
     }
-  }
-
-  determineJobId(workUnit, endpointState) {
-    let jobId = workUnit.jobId ? workUnit.jobId : endpointState.jobId;
-    return jobId ? jobId : datahub.hubUtils.uuid();
   }
 }
 

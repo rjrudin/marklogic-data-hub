@@ -102,7 +102,7 @@ public class MappingTest extends HubTestBase {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode workUnit = mapper.createObjectNode();
         workUnit.put("flowName", "CustomerXML");
-        workUnit.putArray("steps").add("2");
+        workUnit.putArray("stepNumbers").add("2");
 
         bulkCaller.setWorkUnit(new JacksonHandle(workUnit));
         bulkCaller.setEndpointState(new JacksonHandle(mapper.createObjectNode()));
