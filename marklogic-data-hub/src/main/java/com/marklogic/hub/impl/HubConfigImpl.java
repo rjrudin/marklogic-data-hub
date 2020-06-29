@@ -1806,15 +1806,21 @@ public class HubConfigImpl implements HubConfig
                 formatter.format(lineFormat, key, c.getDefaultValueAsString(), c.getDescription());
             } else {
                 // TODO Tokenize for spaces/hyphens
-                String remainingDescription = description.substring(descriptionLength);
-                formatter.format(lineFormat, key, c.getDefaultValueAsString(), description.substring(0, descriptionLength));
+                String remainingDescription = description;
+                String portionToWrite = remainingDescription.substring(0, descriptionLength);
+                int lastBreakingIndex = portionToWrite.lastIndexOf(" ");
+                portionToWrite = portionToWrite.substring(0, lastBreakingIndex);
+                formatter.format(lineFormat, key, c.getDefaultValueAsString(), portionToWrite);
                 while (true) {
+                    remainingDescription = remainingDescription.substring(lastBreakingIndex + 1);
                     if (remainingDescription.length() <= descriptionLength) {
                         formatter.format(lineFormat, "", "", remainingDescription);
                         break;
                     }
-                    formatter.format(lineFormat, "", "", remainingDescription.substring(0, descriptionLength));
-                    remainingDescription = remainingDescription.substring(descriptionLength);
+                    portionToWrite = remainingDescription.substring(0, descriptionLength);
+                    lastBreakingIndex = portionToWrite.lastIndexOf(" ");
+                    portionToWrite = portionToWrite.substring(0, lastBreakingIndex);
+                    formatter.format(lineFormat, "", "", portionToWrite);
                 }
             }
             formatter.flush();
