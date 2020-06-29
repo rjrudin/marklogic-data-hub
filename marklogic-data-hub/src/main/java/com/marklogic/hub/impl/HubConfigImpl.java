@@ -1693,6 +1693,7 @@ public class HubConfigImpl implements HubConfig
         private String description;
         private Consumer<String> consumer;
         private boolean appliesToDhs = false;
+        private Object defaultValue;
 
         public PropertyConsumer(String description, Consumer<String> consumer) {
             this.description = description;
@@ -1715,6 +1716,19 @@ public class HubConfigImpl implements HubConfig
         public boolean isAppliesToDhs() {
             return appliesToDhs;
         }
+
+        public PropertyConsumer withDefaultValue(Object value) {
+            this.defaultValue = value;
+            return this;
+        }
+
+        public Object getDefaultValue() {
+            return defaultValue;
+        }
+
+        public String getDefaultValueAsString() {
+            return defaultValue != null ? defaultValue + "" : "";
+        }
     }
 
     private Map<String, PropertyConsumer> documentedPropertyConsumers;
@@ -1733,7 +1747,7 @@ public class HubConfigImpl implements HubConfig
      * Can always pass in a ByteArrayOutputStream, for e.g. Gradle
      * @param out
      */
-    public void printPropertyDocumentation(OutputStream out) throws IOException {
+    public static void printPropertyDocumentation(OutputStream out) throws IOException {
         printPropertyDocumentation(out, false);
     }
 
@@ -1742,58 +1756,80 @@ public class HubConfigImpl implements HubConfig
      *
      * @param out
      */
-    public void printPropertyDocumentation(OutputStream out, boolean onlyDhsProps) throws IOException {
-        if (documentedPropertyConsumers == null) {
-            registerPropertyConsumers();
-        }
+    public static void printPropertyDocumentation(OutputStream out, boolean onlyDhsProps) throws IOException {
+        HubConfigImpl config = new HubConfigImpl();
+        config.registerPropertyConsumers();
 
         // Use a TreeMap so entries are sorted by property name
         final Map<String, PropertyConsumer> filteredConsumers = new TreeMap<>();
 
-        String longestPropertyName = "";
-        for (String key : documentedPropertyConsumers.keySet()) {
-            if (onlyDhsProps && !documentedPropertyConsumers.get(key).isAppliesToDhs()) {
+        int longestPropertyLength = "Property".length();
+        int longestDefaultValueLength = "Default Value".length();
+        for (String key : config.documentedPropertyConsumers.keySet()) {
+            PropertyConsumer consumer = config.documentedPropertyConsumers.get(key);
+            if (onlyDhsProps && !consumer.isAppliesToDhs()) {
                 continue;
             }
-            filteredConsumers.put(key, documentedPropertyConsumers.get(key));
-            if (key.length() > longestPropertyName.length()) {
-                longestPropertyName = key;
+            filteredConsumers.put(key, consumer);
+            if (key.length() > longestPropertyLength) {
+                longestPropertyLength = key.length();
+            }
+            String defaultValue = consumer.getDefaultValueAsString();
+            if (defaultValue.length() > longestDefaultValueLength) {
+                longestDefaultValueLength = defaultValue.length();
             }
         }
+        // Account for whitespace character at end of value
+        longestPropertyLength++;
+        longestDefaultValueLength++;
 
-        String header = "| Property ";
-        int buffer = longestPropertyName.length() - "Property".length();
-        for (int i = 0; i < buffer; i++) {
-            header += " ";
+        final String prefix = "| ";
+        final int prefixLength = prefix.length();
+        final int maxLineLength = 120;
+        int preDescriptionLength = prefixLength + longestPropertyLength + prefixLength + longestDefaultValueLength + prefixLength;
+        int descriptionLength = maxLineLength - preDescriptionLength;
+
+        Formatter formatter = new Formatter(out);
+        final String lineFormat = "| %-" + longestPropertyLength + "s | %-" + longestDefaultValueLength + "s | %-" + descriptionLength + "s |%n";
+        formatter.format(lineFormat, "Property", "Default Value", "Description").flush();
+
+        String separator = "";
+        for (int i = 0; i < maxLineLength; i++) {
+            separator += "-";
         }
-        header += "| Description |";
-        out.write((header + "\n").getBytes());
-        String separatingLine = "";
-        for (int i = 0; i < header.length(); i++) {
-            separatingLine += "-";
-        }
-        separatingLine += "\n";
-        out.write(separatingLine.getBytes());
+        formatter.format(separator + "%n").flush();
+
         for (String key : filteredConsumers.keySet()) {
-            String line = "| " + key;
-            int padding = longestPropertyName.length() - key.length();
-            for (int i = 0; i < padding; i++) {
-                line += " ";
+            PropertyConsumer c = filteredConsumers.get(key);
+            final String description = c.getDescription();
+            if (description.length() <= descriptionLength) {
+                formatter.format(lineFormat, key, c.getDefaultValueAsString(), c.getDescription());
+            } else {
+                // TODO Tokenize for spaces/hyphens
+                String remainingDescription = description.substring(descriptionLength);
+                formatter.format(lineFormat, key, c.getDefaultValueAsString(), description.substring(0, descriptionLength));
+                while (true) {
+                    if (remainingDescription.length() <= descriptionLength) {
+                        formatter.format(lineFormat, "", "", remainingDescription);
+                        break;
+                    }
+                    formatter.format(lineFormat, "", "", remainingDescription.substring(0, descriptionLength));
+                    remainingDescription = remainingDescription.substring(descriptionLength);
+                }
             }
-            line += " | " + filteredConsumers.get(key).getDescription() + " |\n";
-            out.write(line.getBytes());
+            formatter.flush();
         }
     }
 
     public static void main(String[] args) throws Exception {
-        new HubConfigImpl().printPropertyDocumentation(System.out, true);
+        HubConfigImpl.printPropertyDocumentation(System.out);
     }
 
     // TODO Add deprecated marking?
     private void registerPropertyConsumers() {
         documentedPropertyConsumers = new LinkedHashMap<>();
         registerDhsProp("mlHost", "The host in your MarkLogic cluster to connect to for any Hub-related task",
-            prop -> setHost(prop));
+            prop -> setHost(prop)).withDefaultValue(host);
         registerDhsProp("mlUsername", "The username for authenticating when performing any Hub-related task",
             prop -> mlUsername = prop);
         registerDhsProp("mlPassword", "The password for authenticating as the user defined by mlUsername",
@@ -1804,14 +1840,14 @@ public class HubConfigImpl implements HubConfig
 
         // Not really a DHS property
         registerProp("mlIsHostLoadBalancer", "Set to true when running legacy (DHF version 4 or earlier) input flows and connecting to a load balancer",
-            prop -> isHostLoadBalancer = Boolean.parseBoolean(prop));
+            prop -> isHostLoadBalancer = Boolean.parseBoolean(prop)).withDefaultValue(isHostLoadBalancer);
 
         registerProp("mlLoadBalancerHosts", "Deprecated in DHF version 4.0.1; has no impact on any functionality",
             prop -> logger.warn("mlLoadBalancerHosts was deprecated in version 4.0.1 and does not have any impact on Data Hub functionality. " +
                 "It can be safely removed from your set of properties."));
 
         registerDhsProp("mlIsProvisionedEnvironment", "Must be set to true when connecting to DHS",
-            prop -> Boolean.parseBoolean(prop));
+            prop -> Boolean.parseBoolean(prop)).withDefaultValue(isProvisionedEnvironment);
     }
 
     /**

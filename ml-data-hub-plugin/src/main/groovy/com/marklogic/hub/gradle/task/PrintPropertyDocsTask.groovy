@@ -9,8 +9,7 @@ class PrintPropertyDocsTask extends HubTask {
     @TaskAction
     void printPropertyDocs() {
         ByteArrayOutputStream baos = new ByteArrayOutputStream()
-        HubConfigImpl config = getHubConfig()
-        config.printPropertyDocumentation(baos)
+        HubConfigImpl.printPropertyDocumentation(baos)
         println new String(baos.toByteArray())
     }
 }
