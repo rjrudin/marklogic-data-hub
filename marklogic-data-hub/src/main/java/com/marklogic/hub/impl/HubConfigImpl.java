@@ -52,10 +52,7 @@ import org.springframework.util.StringUtils;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.X509TrustManager;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
@@ -1692,11 +1689,136 @@ public class HubConfigImpl implements HubConfig
         jobPermissions = "data-hub-job-reader,read,data-hub-job-internal,update";
     }
 
+    public static class PropertyConsumer {
+        private String description;
+        private Consumer<String> consumer;
+        private boolean appliesToDhs = false;
+
+        public PropertyConsumer(String description, Consumer<String> consumer) {
+            this.description = description;
+            this.consumer = consumer;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public Consumer<String> getConsumer() {
+            return consumer;
+        }
+
+        public PropertyConsumer appliesToDhs() {
+            this.appliesToDhs = true;
+            return this;
+        }
+
+        public boolean isAppliesToDhs() {
+            return appliesToDhs;
+        }
+    }
+
+    private Map<String, PropertyConsumer> documentedPropertyConsumers;
+
+    private PropertyConsumer registerProp(String property, String description, Consumer<String> consumer) {
+        PropertyConsumer propertyConsumer = new PropertyConsumer(description, consumer);
+        documentedPropertyConsumers.put(property, propertyConsumer);
+        return propertyConsumer;
+    }
+
+    private PropertyConsumer registerDhsProp(String property, String description, Consumer<String> consumer) {
+        return registerProp(property, description, consumer).appliesToDhs();
+    }
+
     /**
-     * Defines functions for consuming properties from a PropertySource. This differs substantially from
-     * loadConfigurationFromProperties, as that function's behavior depends on whether a field has a value or not.
+     * Can always pass in a ByteArrayOutputStream, for e.g. Gradle
+     * @param out
+     */
+    public void printPropertyDocumentation(OutputStream out) throws IOException {
+        printPropertyDocumentation(out, false);
+    }
+
+    /**
+     * Can always pass in a ByteArrayOutputStream, for e.g. Gradle
+     *
+     * @param out
+     */
+    public void printPropertyDocumentation(OutputStream out, boolean onlyDhsProps) throws IOException {
+        if (documentedPropertyConsumers == null) {
+            registerPropertyConsumers();
+        }
+
+        // Use a TreeMap so entries are sorted by property name
+        final Map<String, PropertyConsumer> filteredConsumers = new TreeMap<>();
+
+        String longestPropertyName = "";
+        for (String key : documentedPropertyConsumers.keySet()) {
+            if (onlyDhsProps && !documentedPropertyConsumers.get(key).isAppliesToDhs()) {
+                continue;
+            }
+            filteredConsumers.put(key, documentedPropertyConsumers.get(key));
+            if (key.length() > longestPropertyName.length()) {
+                longestPropertyName = key;
+            }
+        }
+
+        String header = "| Property ";
+        int buffer = longestPropertyName.length() - "Property".length();
+        for (int i = 0; i < buffer; i++) {
+            header += " ";
+        }
+        header += "| Description |";
+        out.write((header + "\n").getBytes());
+        String separatingLine = "";
+        for (int i = 0; i < header.length(); i++) {
+            separatingLine += "-";
+        }
+        separatingLine += "\n";
+        out.write(separatingLine.getBytes());
+        for (String key : filteredConsumers.keySet()) {
+            String line = "| " + key;
+            int padding = longestPropertyName.length() - key.length();
+            for (int i = 0; i < padding; i++) {
+                line += " ";
+            }
+            line += " | " + filteredConsumers.get(key).getDescription() + " |\n";
+            out.write(line.getBytes());
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        new HubConfigImpl().printPropertyDocumentation(System.out, true);
+    }
+
+    // TODO Add deprecated marking?
+    private void registerPropertyConsumers() {
+        documentedPropertyConsumers = new LinkedHashMap<>();
+        registerDhsProp("mlHost", "The host in your MarkLogic cluster to connect to for any Hub-related task",
+            prop -> setHost(prop));
+        registerDhsProp("mlUsername", "The username for authenticating when performing any Hub-related task",
+            prop -> mlUsername = prop);
+        registerDhsProp("mlPassword", "The password for authenticating as the user defined by mlUsername",
+            prop -> mlPassword = prop);
+        registerProp("mlDHFVersion", "This property no longer has any impact starting in version 5.3.0; prior to 5.3.0, it had an impact on " +
+                "the hubUpdate Gradle task and version detection in QuickStart",
+            prop -> logger.warn("mlDHFVersion no longer has any impact starting in version 5.3.0. You may safely remove this from your properties file."));
+
+        // Not really a DHS property
+        registerProp("mlIsHostLoadBalancer", "Set to true when running legacy (DHF version 4 or earlier) input flows and connecting to a load balancer",
+            prop -> isHostLoadBalancer = Boolean.parseBoolean(prop));
+
+        registerProp("mlLoadBalancerHosts", "Deprecated in DHF version 4.0.1; has no impact on any functionality",
+            prop -> logger.warn("mlLoadBalancerHosts was deprecated in version 4.0.1 and does not have any impact on Data Hub functionality. " +
+                "It can be safely removed from your set of properties."));
+
+        registerDhsProp("mlIsProvisionedEnvironment", "Must be set to true when connecting to DHS",
+            prop -> Boolean.parseBoolean(prop));
+    }
+
+    /**
+     * Defines functions for consuming properties from a PropertySource.
      */
     protected void initializePropertyConsumerMap() {
+        registerPropertyConsumers();
         propertyConsumerMap = new LinkedHashMap<>();
 
         // These "convenience" properties set applied first so that the property values can still be overridden via the
