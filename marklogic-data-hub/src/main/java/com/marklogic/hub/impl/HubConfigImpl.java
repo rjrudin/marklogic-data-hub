@@ -67,6 +67,8 @@ public class HubConfigImpl implements HubConfig
     @Autowired
     private HubProject hubProject;
 
+    private Map<String, PropertyConsumer> propertyConsumerMap;
+
     protected String host;
 
     protected String stagingDbName;
@@ -176,9 +178,6 @@ public class HubConfigImpl implements HubConfig
     @JsonIgnore
     private String flowDeveloperPasswordFromProperties;
 
-    // Defines functions for consuming properties from a PropertySource
-    private Map<String, Consumer<String>> propertyConsumerMap;
-
     /**
      * Constructs a HubConfigImpl with a default set of property values.
      */
@@ -268,12 +267,12 @@ public class HubConfigImpl implements HubConfig
 
         // Apply DHF properties
         if (propertyConsumerMap == null) {
-            initializePropertyConsumerMap();
+            registerPropertyConsumers();
         }
         for (String propertyName : propertyConsumerMap.keySet()) {
             String value = propertySource.getProperty(propertyName);
             if (value != null) {
-                propertyConsumerMap.get(propertyName).accept(value);
+                propertyConsumerMap.get(propertyName).getConsumer().accept(value);
             }
         }
         instantiateSslObjects();
@@ -1694,6 +1693,8 @@ public class HubConfigImpl implements HubConfig
         private Consumer<String> consumer;
         private boolean appliesToDhs = false;
         private Object defaultValue;
+        private boolean undocumented = false;
+        private boolean deprecated = false;
 
         public PropertyConsumer(String description, Consumer<String> consumer) {
             this.description = description;
@@ -1729,13 +1730,29 @@ public class HubConfigImpl implements HubConfig
         public String getDefaultValueAsString() {
             return defaultValue != null ? defaultValue + "" : "";
         }
-    }
 
-    private Map<String, PropertyConsumer> documentedPropertyConsumers;
+        public PropertyConsumer setUndocumented(boolean undocumented) {
+            this.undocumented = undocumented;
+            return this;
+        }
+
+        public boolean isUndocumented() {
+            return undocumented;
+        }
+
+        public PropertyConsumer setDeprecated(boolean deprecated) {
+            this.deprecated = deprecated;
+            return this;
+        }
+
+        public boolean isDeprecated() {
+            return deprecated;
+        }
+    }
 
     private PropertyConsumer registerProp(String property, String description, Consumer<String> consumer) {
         PropertyConsumer propertyConsumer = new PropertyConsumer(description, consumer);
-        documentedPropertyConsumers.put(property, propertyConsumer);
+        propertyConsumerMap.put(property, propertyConsumer);
         return propertyConsumer;
     }
 
@@ -1765,8 +1782,11 @@ public class HubConfigImpl implements HubConfig
 
         int longestPropertyLength = "Property".length();
         int longestDefaultValueLength = "Default Value".length();
-        for (String key : config.documentedPropertyConsumers.keySet()) {
-            PropertyConsumer consumer = config.documentedPropertyConsumers.get(key);
+        for (String key : config.propertyConsumerMap.keySet()) {
+            PropertyConsumer consumer = config.propertyConsumerMap.get(key);
+            if (consumer.isUndocumented()) {
+                continue;
+            }
             if (onlyDhsProps && !consumer.isAppliesToDhs()) {
                 continue;
             }
@@ -1824,6 +1844,8 @@ public class HubConfigImpl implements HubConfig
                 }
             }
             formatter.flush();
+
+            formatter.format(separator + "%n").flush();
         }
     }
 
@@ -1831,9 +1853,41 @@ public class HubConfigImpl implements HubConfig
         HubConfigImpl.printPropertyDocumentation(System.out);
     }
 
-    // TODO Add deprecated marking?
+    // TODO Change Gradle plugin to mention how to get lists of tasks and properties
     private void registerPropertyConsumers() {
-        documentedPropertyConsumers = new LinkedHashMap<>();
+        propertyConsumerMap = new LinkedHashMap<>();
+
+        registerProp("hubDhs", "Convenience property for setting several properties that are required for connecting to a DHS instance",
+            prop -> {
+                if (Boolean.parseBoolean(prop)) {
+                    isProvisionedEnvironment = true;
+                    isHostLoadBalancer = true;
+                    appConfig.setAppServicesPort(8010);
+                    appConfig.setAppServicesSecurityContextType(SecurityContextType.BASIC);
+                    appConfig.setAppServicesSslContext(null);
+                    appConfig.setAppServicesSslHostnameVerifier(null);
+                    appConfig.setAppServicesTrustManager(null);
+                    manageConfig.setScheme("http");
+                    manageConfig.setConfigureSimpleSsl(false);
+                    finalAuthMethod = "basic";
+                    stagingAuthMethod = "basic";
+                    jobAuthMethod = "basic";
+                }
+            }).setUndocumented(true);
+
+        registerProp("hubSsl", "Convenience property for setting several properties for enabling SSL connections",
+            prop -> {
+                if (Boolean.parseBoolean(prop)) {
+                    appConfig.setSimpleSslConfig();
+                    appConfig.setAppServicesSimpleSslConfig();
+                    manageConfig.setScheme("https");
+                    manageConfig.setConfigureSimpleSsl(true);
+                    finalSimpleSsl = true;
+                    stagingSimpleSsl = true;
+                    jobSimpleSsl = true;
+                }
+            }).setUndocumented(true);
+
         registerDhsProp("mlHost", "The host in your MarkLogic cluster to connect to for any Hub-related task",
             prop -> setHost(prop)).withDefaultValue(host);
         registerDhsProp("mlUsername", "The username for authenticating when performing any Hub-related task",
@@ -1842,132 +1896,141 @@ public class HubConfigImpl implements HubConfig
             prop -> mlPassword = prop);
         registerProp("mlDHFVersion", "This property no longer has any impact starting in version 5.3.0; prior to 5.3.0, it had an impact on " +
                 "the hubUpdate Gradle task and version detection in QuickStart",
-            prop -> logger.warn("mlDHFVersion no longer has any impact starting in version 5.3.0. You may safely remove this from your properties file."));
+            prop -> logger.warn("mlDHFVersion no longer has any impact starting in version 5.3.0. You may safely remove this from your properties file."))
+            .setDeprecated(true);
 
         // Not really a DHS property
         registerProp("mlIsHostLoadBalancer", "Set to true when running legacy (DHF version 4 or earlier) input flows and connecting to a load balancer",
-            prop -> isHostLoadBalancer = Boolean.parseBoolean(prop)).withDefaultValue(isHostLoadBalancer);
+            prop -> isHostLoadBalancer = Boolean.parseBoolean(prop)).withDefaultValue(isHostLoadBalancer).setDeprecated(true);
 
         registerProp("mlLoadBalancerHosts", "Deprecated in DHF version 4.0.1; has no impact on any functionality",
             prop -> logger.warn("mlLoadBalancerHosts was deprecated in version 4.0.1 and does not have any impact on Data Hub functionality. " +
-                "It can be safely removed from your set of properties."));
+                "It can be safely removed from your set of properties.")).setDeprecated(true);
 
         registerDhsProp("mlIsProvisionedEnvironment", "Must be set to true when connecting to DHS",
             prop -> Boolean.parseBoolean(prop)).withDefaultValue(isProvisionedEnvironment);
-    }
 
-    /**
-     * Defines functions for consuming properties from a PropertySource.
-     */
-    protected void initializePropertyConsumerMap() {
-        registerPropertyConsumers();
-        propertyConsumerMap = new LinkedHashMap<>();
+        registerProp("mlStagingAppserverName", "The name of the staging app server",
+            prop -> stagingHttpName = prop).withDefaultValue(stagingHttpName);
+        registerProp("mlStagingPort", "The port of the staging app server",
+            prop -> stagingPort = Integer.parseInt(prop)).withDefaultValue(stagingPort);
+        registerProp("mlStagingDbName", "The name of the staging database",
+            prop -> stagingDbName = prop).withDefaultValue(stagingDbName);
+        registerProp("mlStagingForestsPerHost", "The number of forests per host to create for the staging database",
+            prop -> stagingForestsPerHost = Integer.parseInt(prop)).withDefaultValue(stagingForestsPerHost);
+        registerProp("mlStagingAuth", "The authentication strategy for the staging app server; can be 'basic' or 'digest'",
+            prop -> stagingAuthMethod = prop).withDefaultValue(stagingAuthMethod);
+        registerProp("mlStagingSimpleSsl", "If true, a simple trust-everything approach will be used for connecting to the " +
+            "staging app server with SSL", prop -> stagingSimpleSsl = Boolean.parseBoolean(prop)).withDefaultValue(stagingSimpleSsl);
+        registerProp("mlStagingCertFile", "", prop -> stagingCertFile = prop).setUndocumented(true);
+        registerProp("mlStagingCertPassword", "", prop -> stagingCertPassword = prop).setUndocumented(true);
+        registerProp("mlStagingExternalName", "", prop -> stagingExternalName = prop).setUndocumented(true);
 
-        // These "convenience" properties set applied first so that the property values can still be overridden via the
-        // property keys specific to them
-        propertyConsumerMap.put("hubDhs", prop -> {
-            if (Boolean.parseBoolean(prop)) {
-                isProvisionedEnvironment = true;
-                isHostLoadBalancer = true;
-                appConfig.setAppServicesPort(8010);
-                appConfig.setAppServicesSecurityContextType(SecurityContextType.BASIC);
-                appConfig.setAppServicesSslContext(null);
-                appConfig.setAppServicesSslHostnameVerifier(null);
-                appConfig.setAppServicesTrustManager(null);
-                manageConfig.setScheme("http");
-                manageConfig.setConfigureSimpleSsl(false);
-                finalAuthMethod = "basic";
-                stagingAuthMethod = "basic";
-                jobAuthMethod = "basic";
-            }
-        });
+        registerProp("mlFinalAppserverName", "The name of the final app server",
+            prop -> finalHttpName = prop).withDefaultValue(finalHttpName);
+        registerProp("mlFinalPort", "The port of the final app server",
+            prop -> finalPort = Integer.parseInt(prop)).withDefaultValue(finalPort);
+        registerProp("mlFinalDbName", "The name of the final database",
+            prop -> finalDbName = prop).withDefaultValue(finalDbName);
+        registerProp("mlFinalForestsPerHost", "The number of forests per host to create for the final database",
+            prop -> finalForestsPerHost = Integer.parseInt(prop)).withDefaultValue(finalForestsPerHost);
+        registerProp("mlFinalAuth", "The authentication strategy for the final app server; can be 'basic' or 'digest'",
+            prop -> finalAuthMethod = prop).withDefaultValue(finalAuthMethod);
+        registerProp("mlFinalSimpleSsl", "If true, a simple trust-everything approach will be used for connecting to the " +
+            "final app server with SSL", prop -> finalSimpleSsl = Boolean.parseBoolean(prop)).withDefaultValue(finalSimpleSsl);
+        registerProp("mlFinalCertFile", "", prop -> finalCertFile = prop).setUndocumented(true);
+        registerProp("mlFinalCertPassword", "", prop -> finalCertPassword = prop).setUndocumented(true);
+        registerProp("mlFinalExternalName", "", prop -> finalExternalName = prop).setUndocumented(true);
 
-        propertyConsumerMap.put("hubSsl", prop -> {
-            if (Boolean.parseBoolean(prop)) {
-                appConfig.setSimpleSslConfig();
-                appConfig.setAppServicesSimpleSslConfig();
-                manageConfig.setScheme("https");
-                manageConfig.setConfigureSimpleSsl(true);
-                finalSimpleSsl = true;
-                stagingSimpleSsl = true;
-                jobSimpleSsl = true;
-            }
-        });
+        registerProp("mlJobAppserverName", "The name of the job app server",
+            prop -> jobHttpName = prop).withDefaultValue(jobHttpName);
+        registerProp("mlJobPort", "The port of the job app server",
+            prop -> jobPort = Integer.parseInt(prop)).withDefaultValue(jobPort);
+        registerProp("mlJobDbName", "The name of the job database",
+            prop -> jobDbName = prop).withDefaultValue(jobDbName);
+        registerProp("mlJobForestsPerHost", "The number of forests per host to create for the job database",
+            prop -> jobForestsPerHost = Integer.parseInt(prop)).withDefaultValue(jobForestsPerHost);
+        registerProp("mlJobAuth", "The authentication strategy for the job app server; can be 'basic' or 'digest'",
+            prop -> jobAuthMethod = prop).withDefaultValue(jobAuthMethod);
+        registerProp("mlJobSimpleSsl", "If true, a simple trust-everything approach will be used for connecting to the " +
+            "job app server with SSL", prop -> jobSimpleSsl = Boolean.parseBoolean(prop)).withDefaultValue(jobSimpleSsl);
+        registerProp("mlJobCertFile", "", prop -> jobCertFile = prop).setUndocumented(true);
+        registerProp("mlJobCertPassword", "", prop -> jobCertPassword = prop).setUndocumented(true);
+        registerProp("mlJobExternalName", "", prop -> jobExternalName = prop).setUndocumented(true);
 
-        propertyConsumerMap.put("mlUsername", prop -> mlUsername = prop);
-        propertyConsumerMap.put("mlPassword", prop -> mlPassword = prop);
+        registerProp("mlModulesDbName", "The name of the modules database",
+            prop -> modulesDbName = prop).withDefaultValue(modulesDbName);
+        registerProp("mlModulesForestsPerHost", "The number of forests per host to create for the modules database",
+            prop -> modulesForestsPerHost = Integer.parseInt(prop)).withDefaultValue(modulesForestsPerHost);
 
-        propertyConsumerMap.put("mlDHFVersion", prop -> {
-            logger.warn("mlDHFVersion no longer has any impact starting in version 5.3.0. You may safely remove this from your properties file.");
-        });
+        registerProp("mlStagingTriggersDbName", "The name of the staging triggers database",
+            prop -> stagingTriggersDbName = prop).withDefaultValue(stagingTriggersDbName);
+        registerProp("mlStagingTriggersForestsPerHost", "The number of forests per host to create for the staging triggers database",
+            prop -> stagingTriggersForestsPerHost = Integer.parseInt(prop)).withDefaultValue(stagingTriggersForestsPerHost);
+        registerProp("mlStagingSchemasDbName", "The name of the staging schemas database",
+            prop -> stagingSchemasDbName = prop).withDefaultValue(stagingSchemasDbName);
+        registerProp("mlStagingSchemasForestsPerHost", "The number of forests per host to create for the staging schemas database",
+            prop -> stagingSchemasForestsPerHost = Integer.parseInt(prop)).withDefaultValue(stagingSchemasForestsPerHost);
 
-        propertyConsumerMap.put("mlHost", prop -> setHost(prop));
-        propertyConsumerMap.put("mlIsHostLoadBalancer", prop -> isHostLoadBalancer = Boolean.parseBoolean(prop));
-        propertyConsumerMap.put("mlLoadBalancerHosts", prop ->
-            logger.warn("mlLoadBalancerHosts was deprecated in version 4.0.1 and does not have any impact on Data Hub functionality. " +
-                "It can be safely removed from your set of properties."));
-        propertyConsumerMap.put("mlIsProvisionedEnvironment", prop -> isProvisionedEnvironment = Boolean.parseBoolean(prop));
+        registerProp("mlFinalTriggersDbName", "The name of the final triggers database",
+            prop -> finalTriggersDbName = prop).withDefaultValue(finalTriggersDbName);
+        registerProp("mlFinalTriggersForestsPerHost", "The number of forests per host to create for the final triggers database",
+            prop -> finalTriggersForestsPerHost = Integer.parseInt(prop)).withDefaultValue(finalTriggersForestsPerHost);
+        registerProp("mlFinalSchemasDbName", "The name of the final schemas database",
+            prop -> finalSchemasDbName = prop).withDefaultValue(finalSchemasDbName);
+        registerProp("mlFinalSchemasForestsPerHost", "The number of forests per host to create for the final schemas database",
+            prop -> finalSchemasForestsPerHost = Integer.parseInt(prop)).withDefaultValue(finalSchemasForestsPerHost);
 
-        propertyConsumerMap.put("mlStagingAppserverName", prop -> stagingHttpName = prop);
-        propertyConsumerMap.put("mlStagingPort", prop -> stagingPort = Integer.parseInt(prop));
-        propertyConsumerMap.put("mlStagingDbName", prop -> stagingDbName = prop);
-        propertyConsumerMap.put("mlStagingForestsPerHost", prop -> stagingForestsPerHost = Integer.parseInt(prop));
-        propertyConsumerMap.put("mlStagingAuth", prop -> stagingAuthMethod = prop);
-        propertyConsumerMap.put("mlStagingSimpleSsl", prop -> stagingSimpleSsl = Boolean.parseBoolean(prop));
-        propertyConsumerMap.put("mlStagingCertFile", prop -> stagingCertFile = prop);
-        propertyConsumerMap.put("mlStagingCertPassword", prop -> stagingCertPassword = prop);
-        propertyConsumerMap.put("mlStagingExternalName", prop -> stagingExternalName = prop);
+        registerProp("mlCustomForestPath", "", prop -> customForestPath = prop).withDefaultValue(customForestPath).setUndocumented(true);
 
-        propertyConsumerMap.put("mlFinalAppserverName", prop -> finalHttpName = prop);
-        propertyConsumerMap.put("mlFinalPort", prop -> finalPort = Integer.parseInt(prop));
-        propertyConsumerMap.put("mlFinalDbName", prop -> finalDbName = prop);
-        propertyConsumerMap.put("mlFinalForestsPerHost", prop -> finalForestsPerHost = Integer.parseInt(prop));
-        propertyConsumerMap.put("mlFinalAuth", prop -> finalAuthMethod = prop);
-        propertyConsumerMap.put("mlFinalSimpleSsl", prop -> finalSimpleSsl = Boolean.parseBoolean(prop));
-        propertyConsumerMap.put("mlFinalCertFile", prop -> finalCertFile = prop);
-        propertyConsumerMap.put("mlFinalCertPassword", prop -> finalCertPassword = prop);
-        propertyConsumerMap.put("mlFinalExternalName", prop -> finalExternalName = prop);
+        registerProp("mlFlowOperatorRole", "The name to give for the deprecated role for running flows", prop -> flowOperatorRoleName = prop)
+            .withDefaultValue(flowOperatorRoleName).setDeprecated(true);
+        registerProp("mlFlowOperatorUserName", "The name to give for the deprecated user that is created for running flows", prop -> flowOperatorUserName = prop)
+            .withDefaultValue(flowOperatorUserName).setDeprecated(true);
+        registerProp("mlFlowOperatorPassword", "The password for the deprecated deprecateduser identified by mlFlowOperatorUserName", prop -> flowOperatorUserName = prop)
+            .setDeprecated(true);
+        registerProp("mlFlowDeveloperRole", "The name to give for the deprecated role for developing flows", prop -> flowDeveloperRoleName = prop)
+            .withDefaultValue(flowDeveloperRoleName).setDeprecated(true);
+        registerProp("mlFlowDeveloperUserName", "The name to give for the deprecated user that is created for developing flows", prop -> flowDeveloperUserName = prop)
+            .withDefaultValue(flowDeveloperUserName).setDeprecated(true);
+        registerProp("mlFlowDeveloperPassword", "The password for the deprecated user identified by mlFlowDeveloperUserName", prop -> flowDeveloperUserName = prop)
+            .setDeprecated(true);
 
-        propertyConsumerMap.put("mlJobAppserverName", prop -> jobHttpName = prop);
-        propertyConsumerMap.put("mlJobPort", prop -> jobPort = Integer.parseInt(prop));
-        propertyConsumerMap.put("mlJobDbName", prop -> jobDbName = prop);
-        propertyConsumerMap.put("mlJobForestsPerHost", prop -> jobForestsPerHost = Integer.parseInt(prop));
-        propertyConsumerMap.put("mlJobAuth", prop -> jobAuthMethod = prop);
-        propertyConsumerMap.put("mlJobSimpleSsl", prop -> jobSimpleSsl = Boolean.parseBoolean(prop));
-        propertyConsumerMap.put("mlJobCertFile", prop -> jobCertFile = prop);
-        propertyConsumerMap.put("mlJobCertPassword", prop -> jobCertPassword = prop);
-        propertyConsumerMap.put("mlJobExternalName", prop -> jobExternalName = prop);
+        registerProp("mlHubLogLevel", "", prop -> hubLogLevel = prop).withDefaultValue(hubLogLevel).setUndocumented(true);
 
-        propertyConsumerMap.put("mlModulesDbName", prop -> modulesDbName = prop);
-        propertyConsumerMap.put("mlModulesForestsPerHost", prop -> modulesForestsPerHost = Integer.parseInt(prop));
+        // TODO Remove functionality of each of these?
 
-        propertyConsumerMap.put("mlStagingTriggersDbName", prop -> stagingTriggersDbName = prop);
-        propertyConsumerMap.put("mlStagingTriggersForestsPerHost", prop -> stagingTriggersForestsPerHost = Integer.parseInt(prop));
-        propertyConsumerMap.put("mlStagingSchemasDbName", prop -> stagingSchemasDbName = prop);
-        propertyConsumerMap.put("mlStagingSchemasForestsPerHost", prop -> stagingSchemasForestsPerHost = Integer.parseInt(prop));
+        // Can just hardcode the value in the SJS code for saving a model
+        registerProp("mlEntityModelPermissions", "Comma-delimited string that defines permissions for entity models; format is" +
+            "role,capability,role,capability,... where capability can be 'read', 'insert', 'update', or 'execute'",
+            prop -> entityModelPermissions = prop).withDefaultValue(entityModelPermissions).setUndocumented(true);
 
-        propertyConsumerMap.put("mlFinalTriggersDbName", prop -> finalTriggersDbName = prop);
-        propertyConsumerMap.put("mlFinalTriggersForestsPerHost", prop -> finalTriggersForestsPerHost = Integer.parseInt(prop));
-        propertyConsumerMap.put("mlFinalSchemasDbName", prop -> finalSchemasDbName = prop);
-        propertyConsumerMap.put("mlFinalSchemasForestsPerHost", prop -> finalSchemasForestsPerHost = Integer.parseInt(prop));
+        // Is only used for loading hub flows
+        registerProp("mlFlowPermissions", "Comma-delimited string that defines permissions for flows; format is" +
+                "role,capability,role,capability,... where capability can be 'read', 'insert', 'update', or 'execute'",
+            prop -> flowPermissions = prop).withDefaultValue(flowPermissions).setUndocumented(true);
 
-        propertyConsumerMap.put("mlCustomForestPath", prop -> customForestPath = prop);
+        // Can just hardcode this in config.sjs
+        registerProp("mlJobPermissions", "Comma-delimited string that defines permissions for job documents; format is" +
+                "role,capability,role,capability,... where capability can be 'read', 'insert', 'update', or 'execute'",
+            prop -> jobPermissions = prop).withDefaultValue(jobPermissions).setUndocumented(true);
 
-        propertyConsumerMap.put("mlFlowOperatorRole", prop -> flowOperatorRoleName = prop);
-        propertyConsumerMap.put("mlFlowOperatorUserName", prop -> flowOperatorUserName = prop);
-        propertyConsumerMap.put("mlFlowOperatorPassword", prop -> flowOperatorPasswordFromProperties = prop);
-        propertyConsumerMap.put("mlFlowDeveloperRole", prop -> flowDeveloperRoleName = prop);
-        propertyConsumerMap.put("mlFlowDeveloperUserName", prop -> flowDeveloperUserName = prop);
-        propertyConsumerMap.put("mlFlowDeveloperPassword", prop -> flowDeveloperPasswordFromProperties = prop);
+        // Only applies to legacy mapping artifacts; can just be hardcoded
+        registerProp("mlMappingPermissions", "Comma-delimited string that defines permissions for mapping artifacts; format is" +
+                "role,capability,role,capability,... where capability can be 'read', 'insert', 'update', or 'execute'",
+            prop -> mappingPermissions = prop).withDefaultValue(mappingPermissions).setUndocumented(true);
 
-        propertyConsumerMap.put("mlHubLogLevel", prop -> hubLogLevel = prop);
+        // This is an ml-gradle property... really, we want to prevent this from being set so we can hardcode a value
+        // I think instead of supporting this, we should change HubConfigImpl so that AppConfig.modulePermissions is
+        // set to a specific value
+        registerProp("mlModulePermissions", "Comma-delimited string that defines permissions for modules; format is" +
+                "role,capability,role,capability,... where capability can be 'read', 'insert', 'update', or 'execute'",
+            prop -> modulePermissions = prop).withDefaultValue(modulePermissions).setUndocumented(true);
 
-        propertyConsumerMap.put("mlEntityModelPermissions", prop -> entityModelPermissions = prop);
-        propertyConsumerMap.put("mlFlowPermissions", prop -> flowPermissions = prop);
-        propertyConsumerMap.put("mlJobPermissions", prop -> jobPermissions = prop);
-        propertyConsumerMap.put("mlMappingPermissions", prop -> mappingPermissions = prop);
-        propertyConsumerMap.put("mlModulePermissions", prop -> modulePermissions = prop);
-        propertyConsumerMap.put("mlStepDefinitionPermissions", prop -> stepDefinitionPermissions = prop);
+        // Only used for hub step definitions
+        registerProp("mlStepDefinitionPermissions", "Comma-delimited string that defines permissions for step definitions; format is" +
+                "role,capability,role,capability,... where capability can be 'read', 'insert', 'update', or 'execute'",
+            prop -> stepDefinitionPermissions = prop).withDefaultValue(stepDefinitionPermissions).setUndocumented(true);
     }
 
     /**
