@@ -101,6 +101,7 @@ public class DeployHubDatabaseCommand extends DeployDatabaseCommand {
                 payloadNode.remove("language");
             }
 
+            System.out.println("PAY: " + payloadNode.toString());
             return payloadNode.toString();
         } catch (IOException e) {
             throw new DataHubConfigurationException(e);
