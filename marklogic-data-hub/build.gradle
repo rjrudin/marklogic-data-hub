@@ -73,6 +73,12 @@ dependencies {
     // For installer program
     compile "com.beust:jcommander:1.72"
 
+    compile group: 'org.apache.spark', name:'spark-sql_2.11',version: '2.4.5'
+    compile group:'org.apache.spark', name:'spark-launcher_2.11',version: '2.4.5'
+    compile group:'org.apache.spark', name:'spark-catalyst_2.11',version: '2.4.5'
+    compile group:'org.apache.spark', name:'spark-streaming_2.11',version: '2.4.5'
+    compile group:'org.apache.spark', name:'spark-core_2.11',version: '2.4.5'
+
     // JUnit Jupiter API and TestEngine implementation
     testCompile "org.junit.jupiter:junit-jupiter-api:${junitJupiterVersion}"
     testCompile "org.junit.jupiter:junit-jupiter-params:${junitJupiterVersion}"
