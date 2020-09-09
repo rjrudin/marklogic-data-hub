@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.marklogic.hub.connector;
+package com.marklogic.hub.cloud.aws.glue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marklogic.client.DatabaseClient;
@@ -25,7 +25,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.security.cert.X509Certificate;
 
-public class IOTestUtil {
+public class IOUtil {
 
     public static DatabaseClient db ;
     public static DatabaseClient modDb;
@@ -33,7 +33,7 @@ public class IOTestUtil {
 
     public final static ObjectMapper mapper = new ObjectMapper();
 
-    public IOTestUtil(String hostip, int port, String username, String password, String moduleDatabase) {
+    public IOUtil(String hostip, int port, String username, String password, String moduleDatabase) {
         try {
 
             X509TrustManager trustManager = new X509TrustManager() {
@@ -57,9 +57,9 @@ public class IOTestUtil {
                 e.printStackTrace();
             }
             db = DatabaseClientFactory.newClient(hostip, port,  new DatabaseClientFactory.BasicAuthContext(username, password).withSSLHostnameVerifier(DatabaseClientFactory.SSLHostnameVerifier.ANY).withSSLContext(sslContext, trustManager),
-                    DatabaseClient.ConnectionType.GATEWAY);
+                DatabaseClient.ConnectionType.GATEWAY);
             modDb = DatabaseClientFactory.newClient(hostip, port, moduleDatabase, new DatabaseClientFactory.BasicAuthContext(username, password).withSSLHostnameVerifier(DatabaseClientFactory.SSLHostnameVerifier.ANY).withSSLContext(sslContext, trustManager),
-                    DatabaseClient.ConnectionType.GATEWAY);
+                DatabaseClient.ConnectionType.GATEWAY);
             modMgr = modDb.newTextDocumentManager();
         } catch (Exception ex) {
             ex.printStackTrace();

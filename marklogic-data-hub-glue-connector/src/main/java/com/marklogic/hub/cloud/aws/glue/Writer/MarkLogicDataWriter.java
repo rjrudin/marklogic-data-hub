@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.marklogic.hub.connector.Writer;
+package com.marklogic.hub.cloud.aws.glue.Writer;
 
 import com.marklogic.client.dataservices.InputEndpoint;
 import com.marklogic.client.io.StringHandle;
-import com.marklogic.hub.connector.IOTestUtil;
+import com.marklogic.hub.cloud.aws.glue.IOUtil;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.json.JSONOptions;
 import org.apache.spark.sql.catalyst.json.JacksonGenerator;
@@ -26,8 +26,12 @@ import org.apache.spark.sql.sources.v2.writer.DataWriter;
 import org.apache.spark.sql.sources.v2.writer.WriterCommitMessage;
 import org.apache.spark.sql.types.StructType;
 
-import java.io.*;
-import java.util.*;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 public class MarkLogicDataWriter implements DataWriter<InternalRow> {
@@ -46,7 +50,7 @@ public class MarkLogicDataWriter implements DataWriter<InternalRow> {
             this.records = new ArrayList<>();
             this.taskId = Integer.valueOf(map.get("taskId"));
             this.schema = schema;
-            IOTestUtil ioTestUtil = new IOTestUtil(map.get("host"), Integer.valueOf(map.get("port")), map.get("user"),
+            IOUtil ioTestUtil = new IOUtil(map.get("host"), Integer.valueOf(map.get("port")), map.get("user"),
                     map.get("password"), map.get("moduledatabase"));
             String endpointState = "{\"next\":" + 0 + ", \"prefix\":\""+map.get("prefixvalue")+"\"}";
             InputEndpoint loadEndpt = InputEndpoint.on(ioTestUtil.db, ioTestUtil.modDb.newTextDocumentManager().read(map.get("apipath"), new StringHandle()));
@@ -90,7 +94,7 @@ public class MarkLogicDataWriter implements DataWriter<InternalRow> {
         Stream.Builder<InputStream> builder = Stream.builder();
 
         for(int i=0; i< records.size(); i++){
-            builder.add(IOTestUtil.asInputStream(records.get(i)));
+            builder.add(IOUtil.asInputStream(records.get(i)));
         }
         Stream<InputStream> input = builder.build();
         input.forEach(loader::accept);

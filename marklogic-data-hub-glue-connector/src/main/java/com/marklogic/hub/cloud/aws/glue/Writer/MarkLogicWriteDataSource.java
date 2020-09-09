@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.marklogic.hub.connector.Writer;
+package com.marklogic.hub.cloud.aws.glue.Writer;
 
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
 import org.apache.spark.sql.sources.v2.WriteSupport;
 import org.apache.spark.sql.sources.v2.writer.DataSourceWriter;
-import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 

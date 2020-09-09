@@ -13,34 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.marklogic.hub.connector.Writer;
+package com.marklogic.hub.cloud.aws.glue.Writer;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.sources.v2.writer.DataSourceWriter;
+import org.apache.spark.sql.sources.v2.writer.DataWriter;
 import org.apache.spark.sql.sources.v2.writer.DataWriterFactory;
-import org.apache.spark.sql.sources.v2.writer.WriterCommitMessage;
 import org.apache.spark.sql.types.StructType;
 
+import java.util.HashMap;
 import java.util.Map;
 
-public class MarkLogicWriter implements DataSourceWriter {
+public class MarkLogicDataWriterFactory implements DataWriterFactory<InternalRow> {
     private Map<String, String> map;
     private StructType schema;
-    public MarkLogicWriter(Map<String, String> map, StructType schema) {
+    public MarkLogicDataWriterFactory(Map<String, String> map, StructType schema) {
         this.map = map;
         this.schema = schema;
     }
-    @Override
-    public DataWriterFactory<InternalRow> createWriterFactory() {
-        return new MarkLogicDataWriterFactory(map, this.schema);
-    }
 
     @Override
-    public void commit(WriterCommitMessage[] messages) {
-    }
+    public DataWriter<InternalRow> createDataWriter(int partitionId, long taskId, long epochId) {
+        System.out.println("************** task id ************** "+ taskId);
 
-    @Override
-    public void abort(WriterCommitMessage[] messages) {
-        throw new UnsupportedOperationException("Transaction cannot be aborted.");
+        Map<String, String> mapConfig = new HashMap<>();
+        mapConfig.putAll(map);
+        mapConfig.put("taskId",String.valueOf(taskId));
+       // MarkLogicSparkWriteDriver.taskIds.add(taskId);
+
+        return new MarkLogicDataWriter(mapConfig, this.schema);
     }
 }
