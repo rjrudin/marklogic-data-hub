@@ -73,7 +73,6 @@ public abstract class AbstractHubTest extends TestObject {
 
         deleteTestProjectDirectory();
         resetDatabases();
-        logger.info("Initializing test project in directory: " + getTestProjectDirectory());
         initializeTestProjectDirectory();
     }
 
@@ -81,7 +80,11 @@ public abstract class AbstractHubTest extends TestObject {
      * Extracted so that HC can override it, since it does not have a HubProject associated with its HubConfig.
      */
     protected void initializeTestProjectDirectory() {
-        getHubConfig().initHubProject();
+        File projectDir = getTestProjectDirectory();
+        if (projectDir != null) {
+            logger.info("Initializing test project in directory: " + projectDir);
+            getHubConfig().initHubProject();
+        }
     }
 
     protected void deleteTestProjectDirectory() {
