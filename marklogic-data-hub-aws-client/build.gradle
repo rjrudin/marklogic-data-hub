@@ -1,0 +1,18 @@
+plugins {
+    id "java"
+}
+
+repositories {
+    jcenter()
+}
+
+sourceCompatibility = "9"
+targetCompatibility = "9"
+
+group = 'com.marklogic'
+
+dependencies {
+    compile(project(":marklogic-data-hub"))
+
+    compile "com.amazonaws:aws-java-sdk-stepfunctions:1.11.868"
+}
