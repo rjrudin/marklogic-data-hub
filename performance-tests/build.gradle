@@ -1,0 +1,7 @@
+plugins {
+    id "net.foragerr.jmeter" version "1.1.0-4.0"
+}
+
+jmeter {
+    // See https://github.com/jmeter-gradle-plugin/jmeter-gradle-plugin/wiki/Getting-Started
+}
