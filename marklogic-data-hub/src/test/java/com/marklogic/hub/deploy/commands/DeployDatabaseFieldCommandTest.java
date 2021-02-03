@@ -145,7 +145,7 @@ public class DeployDatabaseFieldCommandTest extends AbstractHubCoreTest {
         ObjectNode db = getDatabaseProperties(getHubClient().getDbName(DatabaseKind.FINAL));
 
         ArrayNode array = (ArrayNode) db.get("field");
-        List fieldsToBeRemoved = new ArrayList(List.of("myField", "fieldWithNamespace"));
+        List fieldsToBeRemoved = Arrays.asList("myField", "fieldWithNamespace");
         for (int i = 0; i < array.size(); i++) {
             JsonNode field = array.get(i);
             if ("myField".equals(field.get("field-name").asText()) || "fieldWithNamespace".equals(field.get("field-name").asText())) {
@@ -156,7 +156,7 @@ public class DeployDatabaseFieldCommandTest extends AbstractHubCoreTest {
         }
 
         array = (ArrayNode) db.get("range-field-index");
-        fieldsToBeRemoved = new ArrayList(List.of("myField", "fieldWithNamespace"));
+        fieldsToBeRemoved = Arrays.asList("myField", "fieldWithNamespace");
         for (int i = 0; i < array.size(); i++) {
             JsonNode field = array.get(i);
             if ("myField".equals(field.get("field-name").asText()) || "fieldWithNamespace".equals(field.get("field-name").asText())) {
