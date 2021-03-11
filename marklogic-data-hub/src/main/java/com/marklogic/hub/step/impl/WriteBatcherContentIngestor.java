@@ -3,30 +3,25 @@ package com.marklogic.hub.step.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.marklogic.client.datamovement.*;
+import com.marklogic.client.datamovement.DataMovementManager;
+import com.marklogic.client.datamovement.WriteBatch;
+import com.marklogic.client.datamovement.WriteBatcher;
 import com.marklogic.client.document.ServerTransform;
 import com.marklogic.client.ext.helper.LoggingObject;
 import com.marklogic.client.ext.util.DefaultDocumentPermissionsParser;
-import com.marklogic.client.ext.util.DocumentPermissionsParser;
 import com.marklogic.client.io.DocumentMetadataHandle;
-import com.marklogic.client.io.Format;
-import com.marklogic.client.io.InputStreamHandle;
 import com.marklogic.client.io.marker.AbstractWriteHandle;
-import com.marklogic.client.io.marker.BufferableContentHandle;
-import com.marklogic.client.io.marker.ContentHandle;
 import com.marklogic.hub.DatabaseKind;
 import com.marklogic.hub.HubClient;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class WriteBatcherContentIngester extends LoggingObject implements ContentIngester {
+public class WriteBatcherContentIngestor extends LoggingObject implements ContentIngestor {
 
     private static final String DATE_TIME_FORMAT_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 
@@ -37,17 +32,13 @@ public class WriteBatcherContentIngester extends LoggingObject implements Conten
     private Consumer<String[]> successListener;
     private BiConsumer<String[], Throwable> failureListener;
 
-    private DocumentPermissionsParser documentPermissionsParser = new DefaultDocumentPermissionsParser();
-
-    public WriteBatcherContentIngester(HubClient hubClient, String targetDatabase) {
+    @Override
+    public void initialize(HubClient hubClient, IngestionInputs inputs) {
         this.username = hubClient.getUsername();
-        dataMovementManager = targetDatabase.equals(hubClient.getDbName(DatabaseKind.FINAL)) ?
+        dataMovementManager = inputs.getDatabase().equals(hubClient.getDbName(DatabaseKind.FINAL)) ?
             hubClient.getFinalClient().newDataMovementManager() :
             hubClient.getStagingClient().newDataMovementManager();
-    }
 
-    @Override
-    public void initialize(IngestionInputs inputs) {
         ServerTransform serverTransform = new ServerTransform("mlRunIngest");
         serverTransform.addParameter("job-id", inputs.getJobId());
         serverTransform.addParameter("step", inputs.getStepNumber());
@@ -65,7 +56,7 @@ public class WriteBatcherContentIngester extends LoggingObject implements Conten
 
         DocumentMetadataHandle metadataHandle = new DocumentMetadataHandle();
         if (StringUtils.isNotEmpty(inputs.getPermissions())) {
-            documentPermissionsParser.parsePermissions(inputs.getPermissions(), metadataHandle.getPermissions());
+            new DefaultDocumentPermissionsParser().parsePermissions(inputs.getPermissions(), metadataHandle.getPermissions());
         }
         if (StringUtils.isNotEmpty(inputs.getCollections())) {
             metadataHandle.withCollections(inputs.getCollections().split(","));

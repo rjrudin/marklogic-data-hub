@@ -92,7 +92,7 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
     private HubProject hubProject;
 
     private Thread runningThread = null;
-    private ContentIngester contentIngester;
+    private ContentIngestor contentIngestor;
 
     private JobDocManager jobDocManager;
     // setting these values to protected so their values can be tested
@@ -230,7 +230,7 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
         if (runningThread != null) {
             runningThread.join(unit.convert(timeout, unit));
             if (runningThread.getState() != Thread.State.TERMINATED) {
-                contentIngester.abort();
+                contentIngestor.abort();
                 runningThread.interrupt();
                 throw new TimeoutException("Timeout occurred after " + timeout + " " + unit.toString());
             }
@@ -311,7 +311,7 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
     @Override
     public void stop() {
         isStopped.set(true);
-        contentIngester.abort();
+        contentIngestor.abort();
     }
 
     @SuppressWarnings("unchecked")
@@ -458,46 +458,10 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
 
         Vector<String> errorMessages = new Vector<>();
 
-        contentIngester = new WriteBatcherContentIngester(hubClient, destinationDatabase);
-
         double uriSize = uris.size();
         logger.info("Read " + uriSize + " files");
 
         Map<String, Object> fullResponse = new HashMap<>();
-
-        contentIngester.setSuccessListener(batchUris -> {
-            //TODO: There is one additional item returned, it has to be investigated
-            stepMetrics.getSuccessfulEvents().addAndGet(batchUris.length - 1);
-            stepMetrics.getSuccessfulBatches().addAndGet(1);
-            logger.debug(String.format("Current SuccessfulEvents: %d - FailedEvents: %d", stepMetrics.getSuccessfulEventsCount(), stepMetrics.getFailedEventsCount()));
-            runStatusListener(uriSize, stepMetrics);
-            if (stepItemCompleteListeners.size() > 0) {
-                Arrays.stream(batchUris).forEach(batchUri -> {
-                    stepItemCompleteListeners.forEach((StepItemCompleteListener listener) -> {
-                        listener.processCompletion(runStepResponse.getJobId(), batchUri);
-                    });
-                });
-            }
-        });
-
-        contentIngester.setFailureListener((batchUris, ex) -> {
-            stepMetrics.getFailedEvents().addAndGet(batchUris.length - 1);
-            stepMetrics.getFailedBatches().addAndGet(1);
-            runStatusListener(uriSize, stepMetrics);
-            if (errorMessages.size() < MAX_ERROR_MESSAGES) {
-                errorMessages.add(ex.getLocalizedMessage());
-            }
-            if (stepItemFailureListeners.size() > 0) {
-                Arrays.stream(batchUris).forEach(batchUri -> {
-                    stepItemFailureListeners.forEach((StepItemFailureListener listener) -> {
-                        listener.processFailure(runStepResponse.getJobId(), batchUri);
-                    });
-                });
-            }
-            if (this.stopOnFailure) {
-                contentIngester.abort();
-            }
-        });
 
         Format format = null;
         switch (inputFileType.toLowerCase()) {
@@ -519,6 +483,7 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
         final Format fileFormat = format;
 
         IngestionInputs inputs = new IngestionInputs();
+        inputs.setDatabase(this.destinationDatabase);
         inputs.setCollections(this.outputCollections);
         inputs.setPermissions(this.outputPermissions);
         inputs.setJobId(jobId);
@@ -531,7 +496,42 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
 
         Iterator itr = uris.iterator();
         if (!isStopped.get()) {
-            contentIngester.initialize(inputs);
+            contentIngestor.initialize(this.hubClient, inputs);
+
+            contentIngestor.setSuccessListener(batchUris -> {
+                //TODO: There is one additional item returned, it has to be investigated
+                stepMetrics.getSuccessfulEvents().addAndGet(batchUris.length - 1);
+                stepMetrics.getSuccessfulBatches().addAndGet(1);
+                logger.debug(String.format("Current SuccessfulEvents: %d - FailedEvents: %d", stepMetrics.getSuccessfulEventsCount(), stepMetrics.getFailedEventsCount()));
+                runStatusListener(uriSize, stepMetrics);
+                if (stepItemCompleteListeners.size() > 0) {
+                    Arrays.stream(batchUris).forEach(batchUri -> {
+                        stepItemCompleteListeners.forEach((StepItemCompleteListener listener) -> {
+                            listener.processCompletion(runStepResponse.getJobId(), batchUri);
+                        });
+                    });
+                }
+            });
+
+            contentIngestor.setFailureListener((batchUris, ex) -> {
+                stepMetrics.getFailedEvents().addAndGet(batchUris.length - 1);
+                stepMetrics.getFailedBatches().addAndGet(1);
+                runStatusListener(uriSize, stepMetrics);
+                if (errorMessages.size() < MAX_ERROR_MESSAGES) {
+                    errorMessages.add(ex.getLocalizedMessage());
+                }
+                if (stepItemFailureListeners.size() > 0) {
+                    Arrays.stream(batchUris).forEach(batchUri -> {
+                        stepItemFailureListeners.forEach((StepItemFailureListener listener) -> {
+                            listener.processFailure(runStepResponse.getJobId(), batchUri);
+                        });
+                    });
+                }
+                if (this.stopOnFailure) {
+                    contentIngestor.abort();
+                }
+            });
+
             while (itr.hasNext()) {
                 try {
                     File file = new File((String) itr.next());
@@ -543,7 +543,7 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
         }
 
         runningThread = new Thread(() -> {
-            contentIngester.awaitCompletion();
+            contentIngestor.awaitCompletion();
 
             String stepStatus;
             if (stepMetrics.getFailedEventsCount() > 0 && stopOnFailure) {
@@ -602,7 +602,7 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
         jacksonHandle.set(node);
 
         String uri = generateUriForCsv(file.getParent(), SystemUtils.OS_NAME.toLowerCase());
-        contentIngester.ingest(uri, jacksonHandle);
+        contentIngestor.ingest(uri, jacksonHandle);
         if (!file.getAbsolutePath().equalsIgnoreCase(currentCsvFile)) {
             currentCsvFile = file.getAbsolutePath();
             ++csvFilesProcessed;
@@ -669,7 +669,7 @@ public class WriteStepRunner extends LoggingObject implements StepRunner {
                 throw new RuntimeException(e);
             }
 
-            contentIngester.ingest(uri, handle);
+            contentIngestor.ingest(uri, handle);
         }
     }
 

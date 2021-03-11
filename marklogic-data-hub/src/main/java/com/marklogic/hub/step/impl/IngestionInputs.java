@@ -4,6 +4,7 @@ import java.util.Map;
 
 public class IngestionInputs {
 
+    private String database;
     private String jobId;
     private String flowName;
     private String stepNumber;
@@ -84,5 +85,13 @@ public class IngestionInputs {
 
     public void setStepNumber(String stepNumber) {
         this.stepNumber = stepNumber;
+    }
+
+    public String getDatabase() {
+        return database;
+    }
+
+    public void setDatabase(String database) {
+        this.database = database;
     }
 }
