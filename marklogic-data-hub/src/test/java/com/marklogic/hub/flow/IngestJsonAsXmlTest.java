@@ -22,6 +22,7 @@ public class IngestJsonAsXmlTest extends AbstractHubCoreTest {
         final String flowName = "ingestFlow";
         makeInputFilePathsAbsoluteInFlow(flowName);
         RunFlowResponse response = runFlow(new FlowInputs(flowName, "1"));
+        System.out.println(response.toJson());
         assertEquals(JobStatus.FINISHED.toString(), response.getJobStatus());
 
         // The URI is still written with ".json" by default, since that's the name of the file on disk

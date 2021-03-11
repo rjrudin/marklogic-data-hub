@@ -367,6 +367,7 @@ public class FlowRunnerImpl implements FlowRunner {
                     stepRunner.awaitCompletion();
                 }
                 catch (Exception e) {
+                    logger.error("Error while running step; cause: " + e.getMessage(), e);
                     stepResp = RunStepResponse.withFlow(flow).withStep(stepNum);
                     stepResp.withJobId(runningJobId);
                     if(stepRunner != null){
