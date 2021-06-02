@@ -1,12 +1,14 @@
 package com.marklogic.hub.step;
 
 import com.fasterxml.jackson.databind.node.TextNode;
+import com.marklogic.client.DatabaseClientFactory;
 import com.marklogic.hub.DatabaseKind;
 import com.marklogic.hub.HubClient;
 import com.marklogic.hub.HubConfig;
 import com.marklogic.hub.HubProject;
 import com.marklogic.hub.flow.Flow;
 import com.marklogic.hub.impl.StepDefinitionManagerImpl;
+import com.marklogic.hub.step.impl.MlcpStepRunner;
 import com.marklogic.hub.step.impl.QueryStepRunner;
 import com.marklogic.hub.step.impl.Step;
 import com.marklogic.hub.step.impl.WriteStepRunner;
@@ -44,12 +46,14 @@ public class StepRunnerFactory {
     public StepRunner getStepRunner(Flow flow, String stepNum)  {
 
         Map<String, Step> steps = flow.getSteps();
+        DatabaseClientFactory.newClient("slappy", 1, new DatabaseClientFactory.DigestAuthContext("admin", "admin"));
         Step step = steps.get(stepNum);
         StepDefinition stepDef = stepDefinitionProvider.getStepDefinition(step.getStepDefinitionName(), step.getStepDefinitionType());
 
         StepRunner stepRunner;
         if (StepDefinition.StepDefinitionType.INGESTION.equals(step.getStepDefinitionType())) {
-            stepRunner = new WriteStepRunner(hubClient, hubProject);
+            //stepRunner = new WriteStepRunner(hubClient, hubProject);
+            stepRunner = new MlcpStepRunner()
         } else {
             stepRunner = new QueryStepRunner(hubClient);
         }

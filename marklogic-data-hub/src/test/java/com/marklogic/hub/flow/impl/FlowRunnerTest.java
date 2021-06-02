@@ -156,7 +156,7 @@ public class FlowRunnerTest extends AbstractHubCoreTest {
         writeFinalJsonDoc("/collector-test2.json", "{\"PersonGivenName\":\"John\", \"PersonSurName\":\"Smith\"}", "collector-test-input");
 
         Map<String, Object> options = new HashMap<>();
-        options.put("collections", Arrays.asList("collector-test-output"));
+        options.put("collections", Collections.singletonList("collector-test-output"));
 
         runAsDataHubOperator();
 

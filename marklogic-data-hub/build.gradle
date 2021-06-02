@@ -58,6 +58,8 @@ dependencies {
         exclude module: "spring-core"
     }
 
+    implementation "com.marklogic:mlcp:10.0.6.2"
+
     implementation 'com.marklogic:marklogic-data-movement-components:2.2.1'
 
     implementation 'commons-io:commons-io:2.4'
