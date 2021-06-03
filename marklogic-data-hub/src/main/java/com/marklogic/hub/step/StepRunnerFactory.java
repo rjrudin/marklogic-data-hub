@@ -53,7 +53,7 @@ public class StepRunnerFactory {
         StepRunner stepRunner;
         if (StepDefinition.StepDefinitionType.INGESTION.equals(step.getStepDefinitionType())) {
             //stepRunner = new WriteStepRunner(hubClient, hubProject);
-            stepRunner = new MlcpStepRunner()
+            stepRunner = new MlcpStepRunner(hubClient);
         } else {
             stepRunner = new QueryStepRunner(hubClient);
         }
@@ -100,12 +100,9 @@ public class StepRunnerFactory {
                 }
             }
             ((WriteStepRunner)stepRunner).withDestinationDatabase(targetDatabase);
-        }
-
-        //For ingest flow, set stepDef.
-        if(StepDefinition.StepDefinitionType.INGESTION.equals(step.getStepDefinitionType())) {
             ((WriteStepRunner)stepRunner).withStepDefinition(stepDef);
         }
+
         return stepRunner;
     }
 }

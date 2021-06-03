@@ -58,7 +58,10 @@ dependencies {
         exclude module: "spring-core"
     }
 
-    implementation "com.marklogic:mlcp:10.0.6.2"
+    implementation ("com.marklogic:mlcp:10.0.6.2") {
+        // Excluded to prevent httpclient classpath issues
+        exclude group: 'org.apache.avro', module: 'avro-tools'
+    }
 
     implementation 'com.marklogic:marklogic-data-movement-components:2.2.1'
 
@@ -85,10 +88,10 @@ dependencies {
     testImplementation 'org.easymock:easymock:3.4'
     testImplementation 'ch.qos.logback:logback-classic:1.2.3'
     testImplementation 'org.slf4j:log4j-over-slf4j:1.7.13'
-    testImplementation("com.marklogic:mlcp:10.0.4.2") {
-      exclude group: 'org.apache.avro', module: 'avro-tools'
-      exclude group: 'org.apache.commons', module: 'commons-csv'
-    }
+//    testImplementation("com.marklogic:mlcp:10.0.4.2") {
+//      exclude group: 'org.apache.avro', module: 'avro-tools'
+//      exclude group: 'org.apache.commons', module: 'commons-csv'
+//    }
 
     // Provides support for invoking marklogic-unit-test tests via JUnit
     testImplementation ("com.marklogic:marklogic-junit5:1.0.0") {

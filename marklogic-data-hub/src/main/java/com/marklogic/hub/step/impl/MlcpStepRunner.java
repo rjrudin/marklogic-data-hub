@@ -1,11 +1,12 @@
 package com.marklogic.hub.step.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marklogic.client.ext.helper.LoggingObject;
 import com.marklogic.contentpump.ContentPump;
 import com.marklogic.contentpump.bean.MlcpBean;
 import com.marklogic.hub.HubClient;
 import com.marklogic.hub.flow.Flow;
-import com.marklogic.hub.impl.HubConfigImpl;
+import com.marklogic.hub.job.JobStatus;
 import com.marklogic.hub.step.RunStepResponse;
 import com.marklogic.hub.step.StepItemCompleteListener;
 import com.marklogic.hub.step.StepItemFailureListener;
@@ -13,13 +14,13 @@ import com.marklogic.hub.step.StepRunner;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class MlcpStepRunner extends LoggingObject implements StepRunner {
 
-    private HubConfigImpl hubConfig;
     private HubClient hubClient;
 
     private Flow flow;
@@ -30,8 +31,8 @@ public class MlcpStepRunner extends LoggingObject implements StepRunner {
     private Map<String, Object> options;
     private Map<String, Object> stepConfig;
 
-    public MlcpStepRunner(HubConfigImpl hubConfig) {
-        this.hubConfig = hubConfig;
+    public MlcpStepRunner(HubClient hubClient) {
+        this.hubClient = hubClient;
     }
 
     @Override
@@ -42,15 +43,16 @@ public class MlcpStepRunner extends LoggingObject implements StepRunner {
         MlcpBean mlcpBean = new MlcpBean();
 
         mlcpBean.setCommand("IMPORT");
-        mlcpBean.setHost(hubConfig.getHost());
-        mlcpBean.setUsername(hubConfig.getMlUsername());
-        mlcpBean.setPassword(hubConfig.getMlPassword());
+        mlcpBean.setHost(hubClient.getStagingClient().getHost());
+        mlcpBean.setUsername(hubClient.getUsername());
+        mlcpBean.setPassword("password"); // TODO
 
         // Assume staging database, will change if target database is set
-        mlcpBean.setPort(hubConfig.getStagingPort());
-        if (hubConfig.getStagingSslContext() != null) {
-            mlcpBean.setSsl(true);
-        }
+        mlcpBean.setPort(8010);
+        mlcpBean.setDatabase("data-hub-STAGING");
+//        if (hubConfig.getStagingSslContext() != null) {
+//            mlcpBean.setSsl(true);
+//        }
 
         if (this.batchSize != null) {
             mlcpBean.setBatch_size(this.batchSize);
@@ -59,50 +61,63 @@ public class MlcpStepRunner extends LoggingObject implements StepRunner {
             mlcpBean.setThread_count(this.threadCount);
         }
 
+        Map<String, String> fileLocations = new HashMap<>();
+        if(this.flow.getStep(this.stepNumber).getFileLocations() != null) {
+            fileLocations.putAll(new ObjectMapper().convertValue(flow.getStep(stepNumber).getFileLocations(), Map.class));
+        }
+
         if (stepConfig != null) {
             if (stepConfig.get("fileLocations") != null) {
-                Map<String, String> fileLocations = (Map<String, String>)stepConfig.get("fileLocations");
-                mlcpBean.setInput_file_path(fileLocations.get("inputFilePath"));
-                mlcpBean.setInput_file_type(fileLocations.get("inputFileType"));
-                mlcpBean.setOutput_uri_replace(fileLocations.get("outputURIReplacement"));
-                mlcpBean.setOutput_uri_prefix(fileLocations.get("outputURIPrefix"));
-                // TODO separator
+                fileLocations.putAll((Map<String, String>) stepConfig.get("fileLocations"));
             }
             if (stepConfig.containsKey("batchSize")) {
-                mlcpBean.setBatch_size(Integer.parseInt((String)stepConfig.get("batchSize")));
+                mlcpBean.setBatch_size(Integer.parseInt((String) stepConfig.get("batchSize")));
             }
             if (stepConfig.containsKey("threadCount")) {
-                mlcpBean.setThread_count(Integer.parseInt((String)stepConfig.get("threadCount")));
+                mlcpBean.setThread_count(Integer.parseInt((String) stepConfig.get("threadCount")));
             }
         }
 
+        mlcpBean.setInput_file_path(fileLocations.get("inputFilePath"));
+
+        mlcpBean.setInput_file_type("documents");
+        //mlcpBean.setInput_file_type(fileLocations.get("inputFileType"));
+
+
+        mlcpBean.setOutput_uri_replace(fileLocations.get("outputURIReplacement"));
+        mlcpBean.setOutput_uri_prefix(fileLocations.get("outputURIPrefix"));
+        // TODO separator
+
         if (options != null) {
             if (options.containsKey("collections")) {
-                mlcpBean.setOutput_collections((String)options.get("collections"));
+                mlcpBean.setOutput_collections((String) options.get("collections"));
             }
             if (options.containsKey("permissions")) {
-                mlcpBean.setOutput_permissions((String)options.get("permissions"));
+                mlcpBean.setOutput_permissions((String) options.get("permissions"));
             }
             if (options.containsKey("outputFormat")) {
-                mlcpBean.setDocument_type((String)options.get("outputFormat"));
+                mlcpBean.setDocument_type((String) options.get("outputFormat"));
             }
 
             if (options.containsKey("targetDatabase")) {
                 // TODO Set port, do SSL check
-                mlcpBean.setDatabase((String)options.get("targetDatabase"));
+                mlcpBean.setDatabase((String) options.get("targetDatabase"));
             }
         }
 
-        mlcpBean.setTransform_module("/data-hub/5/transforms/mlcp-flow-transform.sjs");
-        mlcpBean.setModules_root("/");
-        mlcpBean.setTransform_param(transformParam);
+        mlcpBean.setOutput_collections("aaa");
+        mlcpBean.setOutput_permissions("data-hub-common,read,data-hub-common,update");
+        //mlcpBean.setTransform_module("/data-hub/5/transforms/mlcp-flow-transform.sjs");
+        //mlcpBean.setModules_root("/");
+        //mlcpBean.setTransform_param(transformParam);
 
-        if (hubConfig.getIsHostLoadBalancer()) {
-            mlcpBean.setRestrict_hosts(true);
-        }
+//        if (hubConfig.getIsHostLoadBalancer()) {
+//            mlcpBean.setRestrict_hosts(true);
+//        }
 
-        RunStepResponse response = new RunStepResponse()
+        RunStepResponse response = RunStepResponse.withFlow(flow)
             .withStep(stepNumber)
+            .withStatus(JobStatus.COMPLETED_PREFIX + stepNumber)
             .withJobId(jobId);
         response.setTargetDatabase(mlcpBean.getDatabase());
         // TODO Parse this from MLCP output
@@ -200,6 +215,6 @@ public class MlcpStepRunner extends LoggingObject implements StepRunner {
 
     @Override
     public int getBatchSize() {
-        return this.getBatchSize();
+        return this.batchSize;
     }
 }
