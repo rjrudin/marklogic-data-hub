@@ -7,7 +7,7 @@
   "additionalCollections" : [ ],
   "sourceQuery" : "cts.collectionQuery([\"match-persons\"])",
   "sourceDatabase" : "data-hub-FINAL",
-  "collections" : [ "master-persons", "Person", "merge-persons" ],
+  "collections" : ["my-merging-step-collection"],
   "targetDatabase" : "data-hub-FINAL",
   "targetFormat" : "json",
   "targetEntityType" : "Person",

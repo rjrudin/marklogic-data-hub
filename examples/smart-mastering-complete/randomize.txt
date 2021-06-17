@@ -1,0 +1,24 @@
+last name exact match
+- build up a list of last names, generate some variants of them (like numbers in the name)
+
+ssn exact
+- randomly pick from 111, 11, and 1111 (with variants through 9)
+
+first name double metaphone
+- alexandra/alexandria
+- build up list of first names, generate some variants of them (but not the two above)
+
+first name synonym
+- Robert/Bob
+- same thing as above
+
+date of birth custom
+- bump date up by a year
+- randomize birth year from 1950 to 2000, and birth month from 01 to 12 (leave birth date as 01)
+
+zip code - zip
+- randomize 11111 through 99999 (inclusive), randomly add -0000 to some?
+
+address - reduce
+- reduce on same address - 123 Main St
+- Random number 111 through 999, then Main St

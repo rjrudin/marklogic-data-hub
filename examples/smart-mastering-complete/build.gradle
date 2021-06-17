@@ -17,10 +17,11 @@ buildscript {
 
 apply plugin: "net.saliman.properties"
 apply plugin: "com.marklogic.ml-data-hub"
+apply plugin: "java"
 
 repositories {
     jcenter()
-    maven { url "http://developer.marklogic.com/maven2/" }
+    mavenCentral()
 }
 
 configurations {
@@ -28,6 +29,10 @@ configurations {
 }
 
 dependencies {
+    implementation "com.marklogic:marklogic-data-hub:5.5.0"
+    implementation "ch.qos.logback:logback-classic:1.2.3"
+    implementation "com.beust:jcommander:1.81"
+
     mlcp "com.marklogic:mlcp:10.0.6.1"
     mlcp files("lib")
 }
@@ -44,3 +49,15 @@ task loadThesaurus(type: com.marklogic.gradle.task.MlcpTask) {
     output_uri_replace = ".*data,''"
 }
 mlPostDeploy.dependsOn loadThesaurus
+
+task ingestPersons(type: JavaExec) {
+    main = "org.example.IngestPersons"
+    classpath = sourceSets.main.runtimeClasspath
+    args = [
+        "--host", mlHost,
+        "--personCount", personCount,
+        "--steps", steps,
+        "--clearData", clearData
+    ]
+    maxHeapSize = project.property("maxHeapSize")
+}

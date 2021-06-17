@@ -1,0 +1,188 @@
+Doc pages on mastering:
+
+https://docs.marklogic.com/datahub/5.4/flows/about-mastering.html - touches on each algorithm, but fairly high level;
+not useful for configuring/using each one. Info on merging is also light.
+
+https://docs.marklogic.com/datahub/5.4/logs/about-provenance-lineage.html - mentions how to configure provenance, but
+doesn't describe what it is or how to make use of it
+
+https://docs.marklogic.com/datahub/5.4/logs/provenance-for-mastering.html - this discusses the "job report", though
+it doesn't explain. The job report does have a query in it that you can run, and that produces very useful results if
+you have "fine" prov enabled for both matching and merging (oddly, it doesn't work if "fine" isn't enabled for matching,
+which seems strange given that matching only writes out a match summary doc, which then gets deleted).
+
+https://docs.marklogic.com/datahub/5.4/flows/configure-mastering-step-using-quickstart.html - QS-specific; it touches
+on each of the matching algorithms but omits some details for the non-Exact ones
+
+https://docs.marklogic.com/datahub/5.4/flows/configure-matching-using-hubcentral.html - For HC; no info on what "Notify"
+actually produces; no info on how to make a custom action module (specifically, function signature); same high-level info
+on each match algorithm
+
+https://docs.marklogic.com/datahub/5.4/flows/configure-merging-using-hubcentral.html - some things missing: what are
+sources? What timestamp?; also, a merged doc has a number of things added to it that aren't explained anywhere, such as -
+merge options; "merges"; "triples"
+
+Questions about results from a merging step:
+
+Q: How do I know why it was merged?
+A: I can find the job report (that requires knowing the job ID that produced the merge, which is stored in a document
+metadata key on the merged document); I then need to have had "fine" provenance for BOTH matching and merging steps;
+I can then run the query in the job report (TODO how does this perform for a large number of docs?), and then I have
+to find the block that's associated with my merged doc. From there, I can see what it was merged.
+
+Q: In a merged document, what is the purpose of "headers/merge-options"?
+A: TODO
+
+Q: In a merged document, what is the purpose of "headers/merges"? Each one captures a URI that was merged into this doc and
+the time at which it was merged. Is this like "provenance lite" - i.e. I get this regardless of whether provenance is
+configured? Is it used in future mastering processes that operate on this document?
+A: TODO
+
+Q: In a merged document, what is the purpose of "headers/id"?
+A: TODO
+
+Q: In a merged document, what is the purpose of the 4 triples added to envelope/triples? In a scenario where 2 docs
+are merged together, 2 triples exist for each merged doc - 1 that defines its rdf type, and 1 that says it's defined
+by a URI. Do these have any impact on mastering in the future, or on any DHF functionality?
+A: TODO
+
+Q: In a merged document, the "full" entity type - e.g. http://marklogic.com/Person-0.0.1/Person - is added as a collection
+to a document. Does this have any impact on DHF functionality?
+A: TODO
+
+Q. In a merged document, the collections sm-Person-merged and sm-Person-mastered are added. These are useful for searching,
+but do they have any impact on DHF functionality? Like if I remove them, will something break?
+A: TODO
+
+Q: After running my merging step (for 100 documents), I get several "sm-Person-auditing" documents. Do they have any
+impact on DHF functionality? Is there something I can do with them?
+A: TODO
+
+Q: After running my merging step, I get a number of "sm-Person-notification" documents. What should I do with these?
+Do they have any impact on DHF functionality?
+A: TODO
+
+Q: If a document meets a "notify" threshold, it is added to the "sm-Person-mastered" collection, along with "my-collection"
+which I configured on the merging step. But if a document doesn't meet any threshold, it's not modified in any way - i.e.
+it's not added to any collections. In both cases though, neither document has been merged. This could mean that both are
+"golden records". So why is one document considered to have been "mastered" but the other is not?
+A: TODO
+
+
+Questions about the matching UI:
+
+Q: For "Reduce Weight" in a ruleset dialog, the tooltip says "When toggled on, no other match type may be selected.".
+What does that mean? I'm able to select any match type I want.
+A: TODO
+
+Q. Also in the "Reduce Weight" dialog, the tooltip says " Use the Reduce match type when a combination of matching
+properties suggests a match when there should be none". "combination" seems misleading here, since I only have one
+property selected. It seems a better description should be "Set this to 'true' when the match ruleset suggests that two
+records do not match each other; the weight associated with the ruleset will then be subtracted from the match score
+as opposed to added to it."
+A: TODO
+
+Q: For a Double Metaphone match, what sort of value makes sense for Distance Threshold? The docs don't provide any
+guidance here.
+A: TODO
+
+Q: For a Double Metaphone match, where do I get a dictionary URI from? The docs eventually take me to the ML docs on how
+to build one, but it's not clear to me what I should actually put in there.
+A: TODO
+
+Q: For a Synonym match, same question as for Double Metaphone - where do I get a thesaurus URI from? And what would I
+put in there? (This is where I think we need examples in the docs, or the docs need to point to examples; but we also
+need to explain different ways for how a thesaurus may be constructed and then updated over time)
+A: TODO
+
+Q: For a Synonym match, the docs for "filter" take me to https://docs.marklogic.com/thsr:expand, but this doesn't
+actually show an example of a filter being used - so how do I use it, and why would I use it?
+A: TODO
+
+Q: For a Custom match, the docs don't tell me what to actually put into a custom module - so what should I do here? The
+example project shows an XQuery example, but not an SJS one.
+A: TODO
+
+Q: For a Zip code match, how do I get a match to work on a nine-digit zip? For example - if the doc I'm matching has a
+zip of 12345, and an existing doc has a zip of 12345-6789, how do I get a match on that?
+A: TODO - the docs and/or HC need to explain the indexes that are required to enable this (three character searches and
+trailing wildcard searches), and/or DHF needs to automate this
+
+Q: The docs state that "Reduce" is a match type, but it's not in the Match Type pulldown - is it a Match Type?
+A: TODO - this is a docs bug, Reduce should not be listed there.
+
+Q: For a custom match threshold, what goes into the function?
+A: TODO - this is the same problem as a custom match action; the SMC example project is useful, but the docs should really
+show how to do this in SJS/XQuery.
+
+Q: For "Notify" for a threshold - the docs state "Sends a notification for a human to review the match and decide on
+the action to take". What does that actually mean?
+A: TODO - this is a docs bugs, because technically nothing is "sent" - a document is written to the database, but then
+as noted above, we don't have any docs on what to do with this notification document.
+
+Questions about the merging UI:
+
+Q: For a merge strategy - what is a "source"? There's no definition of what this actually is in the docs. I might find
+"Source" also mentioned in the Load tile and guess that this is the same thing. But how do I know what the "source" of
+any given entity instance is? There's no indication of that in the detail view (unless I look at the physical JSON/XML,
+but this doesn't seem like a reasonable expectation of a non-developer user).
+A: TODO
+
+Q: For a merge strategy - what does "timestamp" refer to? The docs only state - "Note: The Timestamp node cannot be moved or modified."
+A: TODO
+
+Q: For a merge strategy - what does "length" refer to? It could be - the string length of a value, or it could be the
+number of values that exist for a multi-value property.
+A: TODO - this should be a simple docs improvement; it's "string length" of a value, but I don't think that's obvious.
+
+Q: For "Max Sources" in a merge strategy - if I have 3 docs being merged together, and doc 1 is from Source A and docs
+2 and 3 are from Source B, and I set Max Sources to 1 - what values will be copied over? Only the ones from Source A?
+Does Timestamp have an impact here?
+A: TODO
+
+Q: For a custom merge rule - same question as for matching, what should this look like in SJS and XQuery?
+A: TODO
+
+
+
+
+Scenario: 2 SSN persons match, then last name boost person doesn't match at all
+- We get the expected results; the 2 SSN persons are merged into a new "mastered" doc,
+and the original 2 are archived; and the 3rd is a "mastered" doc
+
+2 SSN persons match, and there's a DM first name match on the last name boost person
+- We get good results for the 2 SSN persons
+- We get a Notification in the match summary, but there's no provenance to indicate why it's a Likely Match
+- The end results are good, but the Notification document doesn't have any indication of why it's a notify:
+"provenance": {
+"/com.marklogic.smart-mastering/matcher/notifications/53f5f9be0f4d38c3d9ead64ef2cda8e2.xml": {
+"matchInformation": {
+"type": "matchInformation",
+"matchedDocuments": {
+},
+"destination": "/com.marklogic.smart-mastering/matcher/notifications/53f5f9be0f4d38c3d9ead64ef2cda8e2.xml"
+}
+}
+},
+"threshold": "Likely Match",
+"uris": [
+"/com.marklogic.smart-mastering/merged/bc467727a85f96ef8687fd3994213573.json",
+"/persons/last-name-plus-zip-boost1.json"
+]
+<sm:notification xmlns:sm="http://marklogic.com/smart-mastering">
+<sm:meta>
+<sm:dateTime>2021-06-17T19:55:26.852031Z</sm:dateTime>
+<sm:user>admin</sm:user>
+<sm:status>unread</sm:status>
+</sm:meta>
+<sm:threshold-label>Likely Match</sm:threshold-label>
+<sm:document-uris>
+<sm:document-uri>/com.marklogic.smart-mastering/merged/bc467727a85f96ef8687fd3994213573.json</sm:document-uri>
+<sm:document-uri>/persons/last-name-plus-zip-boost1.json</sm:document-uri>
+</sm:document-uris>
+</sm:notification>
+
+
+Now if we remove the Notify, such that we just have Match at 19 and Custom at 4, then we get the following results:
+- there's a Slight match, but no provenance to indicate why
+- after the merge, ssn-match1 and third-person aren't modified at all

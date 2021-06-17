@@ -4,6 +4,7 @@
   "stepDefinitionName" : "default-ingestion",
   "stepDefinitionType" : "INGESTION",
   "additionalCollections" : [ ],
+  "provenanceGranularityLevel": "off",
   "headers" : {
     "sources" : [ {
       "name" : "persons"

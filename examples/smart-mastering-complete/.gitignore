@@ -1,3 +1,7 @@
 src/main/hub-internal-config
-src/main/ml-config
+src/main/ml-config/database-fields
+src/main/ml-config/databases
+src/main/ml-config/security/query-rolesets
+src/main/ml-config/servers
 src/main/entity-config
+gradle-remote.properties

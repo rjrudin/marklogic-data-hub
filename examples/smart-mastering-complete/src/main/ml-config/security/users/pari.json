@@ -1,0 +1,9 @@
+{
+  "user-name": "pari",
+  "password": "password",
+  "role": [
+    "hub-central-developer",
+    "data-hub-developer",
+    "pii-reader"
+  ]
+}

@@ -10,7 +10,12 @@
   "targetDatabase" : "data-hub-FINAL",
   "targetFormat" : "json",
   "targetEntityType" : "http://marklogic.com/Person-0.0.1/Person",
+  "provenanceGranularityLevel": "off",
+  "attachSourceDocument": false,
   "properties" : {
+    "PersonID" : {
+      "sourcedFrom" : "PersonID"
+    },
     "DateOfBirth" : {
       "sourcedFrom" : "DateOfBirth"
     },

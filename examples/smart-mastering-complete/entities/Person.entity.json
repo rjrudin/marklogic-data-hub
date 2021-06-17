@@ -7,10 +7,11 @@
   },
   "definitions" : {
     "Person" : {
-      "required" : [ ],
-      "pii" : [ ],
-      "wordLexicon" : [ ],
       "properties" : {
+        "PersonID": {
+          "datatype" : "string",
+          "collation" : "http://marklogic.com/collation/codepoint"
+        },
         "FirstName" : {
           "datatype" : "string",
           "collation" : "http://marklogic.com/collation/codepoint",
