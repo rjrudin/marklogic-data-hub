@@ -1,5 +1,6 @@
 {
   "name" : "merge-persons",
+  "threadCount": "24",
   "description" : "",
   "stepDefinitionName" : "default-merging",
   "stepDefinitionType" : "MERGING",

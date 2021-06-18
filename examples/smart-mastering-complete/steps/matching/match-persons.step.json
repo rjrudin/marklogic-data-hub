@@ -1,5 +1,7 @@
 {
   "name" : "match-persons",
+  "batchSize": "20",
+  "threadCount": "24",
   "description" : "",
   "stepDefinitionName" : "default-matching",
   "stepDefinitionType" : "MATCHING",

@@ -290,6 +290,8 @@ public class QueryStepRunner extends LoggingObject implements StepRunner {
         HashMap<String, JobTicket> ticketWrapper = new HashMap<>();
 
         Map<String,JsonNode> fullOutputMap = new HashMap<>();
+        logger.info("Batch size: " + batchSize);
+        logger.info("Thread count: " + threadCount);
         queryBatcher = dataMovementManager.newQueryBatcher(uris.iterator())
             .withBatchSize(batchSize)
             .withThreadCount(threadCount)
