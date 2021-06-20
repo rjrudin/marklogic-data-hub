@@ -23,10 +23,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Stream;
 
-public class IngestPersons {
+public class IngestAndMasterPersons {
 
-    private final static Logger logger = LoggerFactory.getLogger(IngestPersons.class);
+    private final static Logger logger = LoggerFactory.getLogger(IngestAndMasterPersons.class);
 
     public static void main(String[] args) throws Exception {
         Options options = new Options();
@@ -58,6 +59,13 @@ public class IngestPersons {
         RunFlowResponse response = flowRunner.runFlow(flowInputs);
         flowRunner.awaitCompletion();
         logger.info(response.toJson());
+
+        logger.info("Person count: " + options.getPersonCount());
+        Stream.of("sm-Person-mastered", "sm-Person-merged", "sm-Person-archived", "sm-Person-notification", "sm-Person-auditing",
+            "http://marklogic.com/Person-0.0.1/Person", "Person").forEach(collection -> {
+            logger.info(collection + ": " + hubClient.getFinalClient().newServerEval()
+                .javascript("cts.estimate(cts.collectionQuery('" + collection + "'))").evalAs(String.class));
+        });
     }
 
     private static void ingestPersons(HubClient hubClient, Options options) throws Exception {
@@ -67,7 +75,7 @@ public class IngestPersons {
             .withBatchSize(100)
             .withTransform(new ServerTransform("mlRunIngest").addParameter("flow-name", "persons").addParameter("step", "1"));
 
-        PersonGenerator personGenerator = new PersonGenerator(new File("data/persons"));
+        PersonGenerator personGenerator = new PersonGenerator(new File("data/persons"), options.getPersonCount());
         DocumentMetadataHandle metadata = new DocumentMetadataHandle();
         metadata.withCollections("ingest-persons")
             .withPermission("data-hub-common", DocumentMetadataHandle.Capability.READ, DocumentMetadataHandle.Capability.UPDATE);
@@ -91,26 +99,26 @@ public class IngestPersons {
  * 22-6 SSN
  * 91-47 Custom DOB, LastName, DM
  * 21-51-85 (51-21 SSN; no mention of 85 though)
- *
+ * <p>
  * 95-4 Custom DOB, DM
  * 63-94 SSN
  * 81-67 Custom DOB, DM
  * 91-47 Custom DOB, LastName, DM
  * 21-51-85 (85-21 LastName, DM) - /com.marklogic.smart-mastering/merged/2045eaf4a7eb71f6ef530768e2932c0d.json
- *
+ * <p>
  * 13-3-38 SSN; and 13 is mapped to both 3 and 38
  * 22-6 SSN
  * 21-51-85 SSN, then LastName + DM
- *
+ * <p>
  * 44-8 Custom DOB, DM, and 44-79 LastName + DB, AND 30-78 LastName + DM + 30-79 SSN
  * - So this has 30, 44, 78, 79, 8
  * - Really weird one
  * 3-13 SSN, and 3-38 SSN, and 38-13 SSN; so 13-3-38
- *
+ * <p>
  * Got the whole 30-44-78-79-8
  * 49-65 SSN
  * 63-94 SSN
- *
+ * <p>
  * UNIQUE LIST
  * 45-56
  * 49-65
@@ -130,8 +138,11 @@ class PersonGenerator {
 
     private ObjectMapper objectMapper = new ObjectMapper();
     private Random random = new Random(System.currentTimeMillis());
+    private int personCount;
 
-    public PersonGenerator(File personDir) throws IOException {
+    public PersonGenerator(File personDir, int personCount) throws IOException {
+        this.personCount = personCount;
+
         for (File file : personDir.listFiles((dir, name) -> name.endsWith(".json"))) {
             ObjectNode node = (ObjectNode) objectMapper.readTree(file);
             addFirstNames(node);
@@ -152,20 +163,20 @@ class PersonGenerator {
     }
 
     private String makeSsn() {
-        int first = random.nextInt(9) + 1;
+        int first = random.nextInt(899) + 100;
         int second = random.nextInt(9) + 1;
         int third = random.nextInt(9) + 1;
-        return "" + first + first + first + "-" + second + second + "-" + third + third + third + third;
+        return "" + first + "-" + second + second + "-" + third + third + third + third;
     }
 
     private String makeDob() {
-        int year = random.nextInt(50) + 1950;
+        int year = random.nextInt(100) + 1900;
         String month = "0" + (random.nextInt(9) + 1);
         return year + "-" + month + "-01";
     }
 
     private String makeAddress() {
-        int number = random.nextInt(111) + 888;
+        int number = random.nextInt(1111) + 8888;
         return number + " Main St";
     }
 
@@ -178,7 +189,7 @@ class PersonGenerator {
         if (node.has("LastName")) {
             String name = node.get("LastName").asText();
             lastNames.add(name);
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < personCount / 10; i++) {
                 lastNames.add(name + i);
             }
         }
@@ -188,10 +199,9 @@ class PersonGenerator {
         if (node.has("FirstName")) {
             String name = node.get("FirstName").asText();
             firstNames.add(name);
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < personCount / 10; i++) {
                 firstNames.add(name + i);
             }
-
         }
     }
 }

@@ -50,8 +50,8 @@ task loadThesaurus(type: com.marklogic.gradle.task.MlcpTask) {
 }
 mlPostDeploy.dependsOn loadThesaurus
 
-task ingestPersons(type: JavaExec) {
-    main = "org.example.IngestPersons"
+task ingestAndMaster(type: JavaExec) {
+    main = "org.example.IngestAndMasterPersons"
     classpath = sourceSets.main.runtimeClasspath
     args = [
         "--host", mlHost,
