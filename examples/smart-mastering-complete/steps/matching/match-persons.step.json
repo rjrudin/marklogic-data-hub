@@ -84,15 +84,5 @@
     "thresholdName" : "Match",
     "action" : "merge",
     "score" : 19
-  }, {
-    "thresholdName" : "Likely Match",
-    "action" : "notify",
-    "score" : 9
-  }, {
-    "thresholdName" : "Slight Match",
-    "action" : "custom",
-    "score" : 4,
-    "actionModulePath" : "/custom-modules/custom/custom-match-action.sjs",
-    "actionModuleFunction" : "customMatch"
-  } ]
+  }]
 }
