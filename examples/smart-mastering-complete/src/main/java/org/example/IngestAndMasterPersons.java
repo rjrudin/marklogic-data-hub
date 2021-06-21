@@ -1,6 +1,7 @@
 package org.example;
 
 import com.beust.jcommander.JCommander;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.marklogic.client.datamovement.DataMovementManager;
@@ -67,6 +68,8 @@ public class IngestAndMasterPersons {
             logger.info(collection + ": " + hubClient.getFinalClient().newServerEval()
                 .javascript("cts.estimate(cts.collectionQuery('" + collection + "'))").evalAs(String.class));
         });
+
+        logMatchSummaryAnalysis(hubClient);
     }
 
     private static void ingestPersons(HubClient hubClient, Options options) throws Exception {
@@ -94,6 +97,54 @@ public class IngestAndMasterPersons {
         logger.info("Finished ingesting persons, time: " + (System.currentTimeMillis() - start));
     }
 
+    private static void logMatchSummaryAnalysis(HubClient hubClient) {
+        String script = "const result = {\n" +
+            "  \"customActions\": 0,\n" +
+            "  \"errors\": []\n" +
+            "};\n" +
+            "\n" +
+            "for (const doc of fn.collection(\"datahubMasteringMatchSummary\")) {\n" +
+            "  Object.values(doc.toObject().matchSummary.actionDetails).forEach(detail => {\n" +
+            "    if (\"customActions\" == detail.action) {\n" +
+            "      result.customActions = result.customActions + 1;\n" +
+            "    } else if (\"merge\" == detail.action) {\n" +
+            "      try {\n" +
+            "        const matchedDocs = Object.values(detail.provenance)[0].matchInformation.matchedDocuments;\n" +
+            "        Object.values(Object.values(matchedDocs)[0]).forEach(actualMatch => {\n" +
+            "          var matchDescription = null;\n" +
+            "          Object.keys(actualMatch).forEach(key => {\n" +
+            "            if (key !== \"$action\") {\n" +
+            "              if (matchDescription == null) {\n" +
+            "                matchDescription = key;\n" +
+            "              } else {\n" +
+            "                matchDescription = matchDescription + \"|\" + key;                \n" +
+            "              }\n" +
+            "            }\n" +
+            "          });\n" +
+            "          if (matchDescription !== null) {\n" +
+            "            if (!result[matchDescription]) {\n" +
+            "              result[matchDescription] = 1;\n" +
+            "            } else {\n" +
+            "              result[matchDescription]++;\n" +
+            "            }            \n" +
+            "          }\n" +
+            "        });\n" +
+            "      } catch (e) {\n" +
+            "        result.errors.push(\"error:\" + e.message);\n" +
+            "      }\n" +
+            "    }\n" +
+            "  });  \n" +
+            "}\n" +
+            "\n" +
+            "result\n";
+
+        String json = hubClient.getFinalClient().newServerEval().javascript(script).evalAs(String.class);
+        try {
+            logger.info("Match summary analysis:\n" + new ObjectMapper().readTree(json).toPrettyString());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
 
 class PersonGenerator {
