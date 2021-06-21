@@ -46,7 +46,7 @@ function main(content, options, stepExecutionContext) {
       httpUtils.throwBadRequestWithArray([`Could not find step with stepId ${options.stepId}`]);
     }
   }
-  
+
   const urisPathReference = cts.pathReference('/matchSummary/URIsToProcess', ['type=string', 'collation=http://marklogic.com/collation/']);
   const datahubCreatedOnRef = cts.fieldReference('datahubCreatedOn', ['type=dateTime']);
   const thisMatchSummaryURI = content.uri;
@@ -124,11 +124,11 @@ function main(content, options, stepExecutionContext) {
         thisMatchSummary,
         options,
         stepExecutionContext != null ? stepExecutionContext.fineProvenanceIsEnabled() : false
-    );  
+    );
   }
 
-  content["$delete"] = true;
-  results.push(content);
+  //content["$delete"] = true;
+  //results.push(content);
   applyPermissionsFromOptions(results, options);
   return results;
 }
@@ -161,17 +161,17 @@ function jobReport(jobID, stepResponse, options, outputContentArray) {
  * If matching step content exists from the flowExecutionContext, then we want to add that to the
  * "write object" catch in util.xqy so that calls to retrieve-write-object will find it, as opposed
  * to checking the database.
- * 
+ *
  * @param contentArray
  */
  function addMatchingStepContentToCache(contentArray) {
   contentArray.forEach(contentObject => {
-    // Collections must be converted to a sequence so that it's handled properly in XQuery 
+    // Collections must be converted to a sequence so that it's handled properly in XQuery
     if (contentObject.context && contentObject.context.collections) {
       contentObject.context.collections = Sequence.from(contentObject.context.collections);
     }
   });
-  utilImpl.addAllWriteObjects(contentArray);  
+  utilImpl.addAllWriteObjects(contentArray);
 }
 
 module.exports = {
