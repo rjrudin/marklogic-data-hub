@@ -74,7 +74,9 @@ public class IngestAndMasterPersons {
         WriteBatcher writeBatcher = dmm.newWriteBatcher()
             .withThreadCount(24)
             .withBatchSize(100)
-            .withTransform(new ServerTransform("mlRunIngest").addParameter("flow-name", "persons").addParameter("step", "1"));
+            .withTransform(new ServerTransform("mlRunIngest")
+                .addParameter("flow-name", "persons").addParameter("step", "1")
+                .addParameter("options", "{\"disableJobOutput\":true}"));
 
         PersonGenerator personGenerator = new PersonGenerator(new File("data/persons"), options);
         DocumentMetadataHandle metadata = new DocumentMetadataHandle();
