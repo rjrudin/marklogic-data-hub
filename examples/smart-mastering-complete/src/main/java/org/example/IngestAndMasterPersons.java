@@ -36,6 +36,7 @@ public class IngestAndMasterPersons {
 
         logger.info("Will connect to host: " + options.getHost());
         logger.info("Person count: " + options.getPersonCount());
+        logger.info("Name randomness: " + options.getNameRandomness());
         logger.info("Will run steps: " + options.getSteps());
 
         Properties props = new Properties();
@@ -75,7 +76,7 @@ public class IngestAndMasterPersons {
             .withBatchSize(100)
             .withTransform(new ServerTransform("mlRunIngest").addParameter("flow-name", "persons").addParameter("step", "1"));
 
-        PersonGenerator personGenerator = new PersonGenerator(new File("data/persons"), options.getPersonCount());
+        PersonGenerator personGenerator = new PersonGenerator(new File("data/persons"), options);
         DocumentMetadataHandle metadata = new DocumentMetadataHandle();
         metadata.withCollections("ingest-persons")
             .withPermission("data-hub-common", DocumentMetadataHandle.Capability.READ, DocumentMetadataHandle.Capability.UPDATE);
@@ -100,10 +101,10 @@ class PersonGenerator {
 
     private ObjectMapper objectMapper = new ObjectMapper();
     private Random random = new Random(System.currentTimeMillis());
-    private int personCount;
+    private Options options;
 
-    public PersonGenerator(File personDir, int personCount) throws IOException {
-        this.personCount = personCount;
+    public PersonGenerator(File personDir, Options options) throws IOException {
+        this.options = options;
 
         for (File file : personDir.listFiles((dir, name) -> name.endsWith(".json"))) {
             ObjectNode node = (ObjectNode) objectMapper.readTree(file);
@@ -151,7 +152,8 @@ class PersonGenerator {
         if (node.has("LastName")) {
             String name = node.get("LastName").asText();
             lastNames.add(name);
-            for (int i = 0; i < personCount / 2; i++) {
+            int numberOfNames = options.getPersonCount() / options.getNameRandomness();
+            for (int i = 0; i < numberOfNames; i++) {
                 lastNames.add(name + i);
             }
         }
@@ -161,7 +163,8 @@ class PersonGenerator {
         if (node.has("FirstName")) {
             String name = node.get("FirstName").asText();
             firstNames.add(name);
-            for (int i = 0; i < personCount / 2; i++) {
+            int numberOfNames = options.getPersonCount() / options.getNameRandomness();
+            for (int i = 0; i < numberOfNames; i++) {
                 firstNames.add(name + i);
             }
         }
