@@ -93,44 +93,6 @@ public class IngestAndMasterPersons {
 
 }
 
-/**
- * 45-56 SSN
- * 49-65 SSN
- * 22-6 SSN
- * 91-47 Custom DOB, LastName, DM
- * 21-51-85 (51-21 SSN; no mention of 85 though)
- * <p>
- * 95-4 Custom DOB, DM
- * 63-94 SSN
- * 81-67 Custom DOB, DM
- * 91-47 Custom DOB, LastName, DM
- * 21-51-85 (85-21 LastName, DM) - /com.marklogic.smart-mastering/merged/2045eaf4a7eb71f6ef530768e2932c0d.json
- * <p>
- * 13-3-38 SSN; and 13 is mapped to both 3 and 38
- * 22-6 SSN
- * 21-51-85 SSN, then LastName + DM
- * <p>
- * 44-8 Custom DOB, DM, and 44-79 LastName + DB, AND 30-78 LastName + DM + 30-79 SSN
- * - So this has 30, 44, 78, 79, 8
- * - Really weird one
- * 3-13 SSN, and 3-38 SSN, and 38-13 SSN; so 13-3-38
- * <p>
- * Got the whole 30-44-78-79-8
- * 49-65 SSN
- * 63-94 SSN
- * <p>
- * UNIQUE LIST
- * 45-56
- * 49-65
- * 22-6
- * 91-47
- * 21-51-85
- * 95-4
- * 63-94
- * 81-67
- * 13-3-38
- * 8-30-44-78-79
- */
 class PersonGenerator {
 
     private List<String> firstNames = new ArrayList<>();
@@ -189,7 +151,7 @@ class PersonGenerator {
         if (node.has("LastName")) {
             String name = node.get("LastName").asText();
             lastNames.add(name);
-            for (int i = 0; i < personCount / 10; i++) {
+            for (int i = 0; i < personCount / 2; i++) {
                 lastNames.add(name + i);
             }
         }
@@ -199,7 +161,7 @@ class PersonGenerator {
         if (node.has("FirstName")) {
             String name = node.get("FirstName").asText();
             firstNames.add(name);
-            for (int i = 0; i < personCount / 10; i++) {
+            for (int i = 0; i < personCount / 2; i++) {
                 firstNames.add(name + i);
             }
         }
