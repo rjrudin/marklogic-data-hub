@@ -26,10 +26,6 @@ class ImportJobsTask extends HubTask {
     @Optional
     public String filename
 
-    String getFilename() {
-        return filename
-    }
-
     @TaskAction
     void exportJobs() {
         if (filename == null) {

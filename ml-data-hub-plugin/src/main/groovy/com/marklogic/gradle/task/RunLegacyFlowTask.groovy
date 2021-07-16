@@ -69,38 +69,6 @@ class RunLegacyFlowTask extends HubTask {
     @Optional
     public Boolean failHard
 
-    String getEntityName() {
-        return entityName
-    }
-
-    String getFlowName() {
-        return flowName
-    }
-
-    Integer getBatchSize() {
-        return batchSize
-    }
-
-    Integer getThreadCount() {
-        return threadCount
-    }
-
-    String getSourceDB() {
-        return sourceDB
-    }
-
-    String getDestDB() {
-        return destDB
-    }
-
-    Boolean getShowOptions() {
-        return showOptions
-    }
-
-    Boolean getFailHard() {
-        return failHard
-    }
-
     @TaskAction
     void runFlow() {
         if (entityName == null) {
