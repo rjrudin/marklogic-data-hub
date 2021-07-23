@@ -16,8 +16,9 @@ snyk {
 
 dependencies {
     implementation project(":marklogic-data-hub")
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.11.1"
     implementation "com.beust:jcommander:1.72"
-    implementation 'commons-io:commons-io:2.4'
+    implementation 'commons-io:commons-io:2.11.0'
     implementation "org.slf4j:slf4j-api:1.7.30"
     implementation 'ch.qos.logback:logback-classic:1.2.3'
 

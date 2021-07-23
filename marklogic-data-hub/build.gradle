@@ -46,32 +46,29 @@ dependencies {
 
     // Now that Java Client 5.4.0 is using api/implementation separation, we need to bring some of its former
     // "compile" dependencies over
+    implementation "org.apache.commons:commons-lang3:3.12.0"
+    implementation "org.apache.httpcomponents:httpclient:4.5.13"
     implementation "com.squareup.okhttp3:okhttp:4.7.2"
     implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.11.1"
     implementation "org.slf4j:slf4j-api:1.7.30"
+    implementation "org.jdom:jdom2:2.0.6"
 
-    implementation ('com.marklogic:mlcp-util:0.9.0') {
-        // mlcp-util depends on 4.2.5, but Gradle forces this up to 5.x based on other Spring dependencies.
-        // But the Palamida security tool thinks 4.2.5 is still being used and reports it as a vulnerability.
-        // So it's forcibly exclude here to avoid confusing Palamida.
-        exclude module: "spring-beans"
-        exclude module: "spring-core"
-    }
+    implementation 'com.marklogic:mlcp-util:1.0'
+    implementation 'com.marklogic:marklogic-data-movement-components:2.3.0'
 
-    implementation 'com.marklogic:marklogic-data-movement-components:2.2.1'
-
-    implementation 'commons-io:commons-io:2.4'
+    implementation 'commons-io:commons-io:2.11.0'
 
     testFixturesApi(testImplementation(project(":marklogic-data-hub-test")))
+    testFixturesApi "com.fasterxml.jackson.core:jackson-databind:2.11.1"
     testFixturesApi "org.junit.jupiter:junit-jupiter:5.7.1"
-    testFixturesImplementation 'commons-io:commons-io:2.4'
+    testFixturesImplementation 'commons-io:commons-io:2.11.0'
 
     // Projects that depend on this project's testFixtures will have access to these resources.
     // But this project apparently needs to use testImplementation to reference them in tests.
     testImplementation files("src/testFixtures/resources")
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.7.1"
-    testImplementation "org.springframework:spring-test:5.2.15.RELEASE"
+    testImplementation "org.springframework:spring-test:5.3.7"
 
     // For managing a pool of HubConfigImpl objects
     testFixturesApi "org.apache.commons:commons-pool2:2.8.1"

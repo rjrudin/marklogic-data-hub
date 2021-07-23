@@ -22,6 +22,11 @@ dependencies {
     // this is an API dependency.
     api "org.slf4j:slf4j-api:1.7.30"
 
+    // This is an API dependency due to the test methods that return a class that depends on a JDOM2 class
+    api "org.jdom:jdom2:2.0.6"
+
+    api "com.fasterxml.jackson.core:jackson-databind:2.11.1"
+
     implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.11.1"
 }
 
