@@ -18,8 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.matchesPattern;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class WriteStepRunnerTest extends AbstractHubCoreTest {
 
@@ -110,29 +109,30 @@ public class WriteStepRunnerTest extends AbstractHubCoreTest {
         WriteStepRunner wsr = new WriteStepRunner(getHubConfig().newHubClient(), getHubConfig().getHubProject());
         wsr.outputURIPrefix = "/prefix";
         wsr.outputFormat = "json";
-        assertThat(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()), matchesPattern(expectedPattern(null, wsr)));
-        assertThat(wsr.generateUriForCsv("C:\\abc\\def", "windows 10"), matchesPattern(expectedPattern(null, wsr)));
+
+        assertTrue(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()).matches(expectedPattern(null, wsr)));
+        assertTrue(wsr.generateUriForCsv("C:\\abc\\def", "windows 10").matches(expectedPattern(null, wsr)));
         wsr.outputFormat = "xml";
-        assertThat(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()), matchesPattern(expectedPattern(null, wsr)));
-        assertThat(wsr.generateUriForCsv("C:\\abc\\def", "windows 10"), matchesPattern(expectedPattern(null, wsr)));
+        assertTrue(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()).matches(expectedPattern(null, wsr)));
+        assertTrue(wsr.generateUriForCsv("C:\\abc\\def", "windows 10").matches(expectedPattern(null, wsr)));
 
         wsr.outputURIPrefix = "";
         wsr.outputFormat = "json";
-        assertThat(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()), matchesPattern(expectedPattern("", wsr)));
-        assertThat(wsr.generateUriForCsv("C:\\abc\\def", "windows 10"), matchesPattern(expectedPattern("", wsr)));
+        assertTrue(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()).matches(expectedPattern("", wsr)));
+        assertTrue(wsr.generateUriForCsv("C:\\abc\\def", "windows 10").matches(expectedPattern("", wsr)));
 
 
         wsr.outputURIPrefix = null;
         wsr.outputFormat = "json";
 
         if(!SystemUtils.OS_NAME.toLowerCase().contains("windows")){
-            assertThat(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()), matchesPattern(expectedPattern("/abc", wsr)));
+            assertTrue(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()).matches(expectedPattern("/abc", wsr)));
         }
-        assertThat(wsr.generateUriForCsv("C:\\abc\\def", "windows 10"), matchesPattern(expectedPattern("/C/abc/def", wsr)));
+        assertTrue(wsr.generateUriForCsv("C:\\abc\\def", "windows 10").matches(expectedPattern("/C/abc/def", wsr)));
 
         wsr.outputURIReplacement = ".*abc,''";
-        assertThat(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()), matchesPattern(expectedPattern("", wsr)));
-        assertThat(wsr.generateUriForCsv("C:\\abc\\def", "windows 10"), matchesPattern(expectedPattern("/def", wsr)));
+        assertTrue(wsr.generateUriForCsv("/abc", SystemUtils.OS_NAME.toLowerCase()).matches(expectedPattern("", wsr)));
+        assertTrue(wsr.generateUriForCsv("C:\\abc\\def", "windows 10").matches(expectedPattern("/def", wsr)));
     }
 
     private String expectedPattern(String path, WriteStepRunner wsr){

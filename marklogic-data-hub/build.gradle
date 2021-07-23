@@ -3,7 +3,6 @@ plugins {
     id 'java-library'
     id 'java-test-fixtures'
     id 'maven-publish'
-    id 'com.jfrog.bintray' version '1.7.2'
     id 'com.marklogic.ml-gradle' version '4.1.1'
     id "com.github.node-gradle.node" version "2.2.4"
     id 'com.marklogic.ml-development-tools' version '5.4.0'
@@ -25,13 +24,6 @@ snyk {
     autoUpdate = true
 }
 
-repositories {
-    //maven { url 'https://repo.spring.io/milestone' }
-
-    // Needed for marklogic-junit
-    maven { url 'https://dl.bintray.com/marklogic-community/Maven/' }
-}
-
 group = 'com.marklogic'
 
 ext {
@@ -44,53 +36,49 @@ ext {
 dependencies {
     api project(":marklogic-data-hub-api")
 
-    // Now that Java Client 5.4.0 is using api/implementation separation, we need to bring some of its former
-    // "compile" dependencies over
     implementation "org.apache.commons:commons-lang3:3.12.0"
     implementation "org.apache.httpcomponents:httpclient:4.5.13"
-    implementation "com.squareup.okhttp3:okhttp:4.7.2"
     implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.11.1"
-    implementation "org.slf4j:slf4j-api:1.7.30"
+    implementation "org.slf4j:slf4j-api:1.7.31"
     implementation "org.jdom:jdom2:2.0.6"
 
+    // Required for some code that accesses OkHttp APIs directly; intended to match the version of
+    // OkHttp that the Java Client brings in
+    implementation "com.squareup.okhttp3:okhttp:4.7.2"
+
     implementation 'com.marklogic:mlcp-util:1.0'
-    implementation 'com.marklogic:marklogic-data-movement-components:2.3.0'
+    implementation 'com.marklogic:marklogic-data-movement-components:2.4.0'
 
     implementation 'commons-io:commons-io:2.11.0'
 
     testFixturesApi(testImplementation(project(":marklogic-data-hub-test")))
     testFixturesApi "com.fasterxml.jackson.core:jackson-databind:2.11.1"
-    testFixturesApi "org.junit.jupiter:junit-jupiter:5.7.1"
+    testFixturesApi "org.junit.jupiter:junit-jupiter:5.7.2"
     testFixturesImplementation 'commons-io:commons-io:2.11.0'
 
     // Projects that depend on this project's testFixtures will have access to these resources.
     // But this project apparently needs to use testImplementation to reference them in tests.
     testImplementation files("src/testFixtures/resources")
 
-    testImplementation "org.junit.jupiter:junit-jupiter:5.7.1"
-    testImplementation "org.springframework:spring-test:5.3.7"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.7.2"
+    testImplementation "org.springframework:spring-test:5.3.9"
 
     // For managing a pool of HubConfigImpl objects
-    testFixturesApi "org.apache.commons:commons-pool2:2.8.1"
+    testFixturesApi "org.apache.commons:commons-pool2:2.10.0"
 
-    testFixturesApi 'xmlunit:xmlunit:1.3'
+    testFixturesApi 'xmlunit:xmlunit:1.6'
 
     testImplementation 'org.skyscreamer:jsonassert:1.5.0'
-    testImplementation 'org.hamcrest:hamcrest-junit:2.0.0.0'
     testImplementation 'org.easymock:easymock:3.4'
-    testImplementation 'ch.qos.logback:logback-classic:1.2.3'
-    testImplementation 'org.slf4j:log4j-over-slf4j:1.7.13'
-    testImplementation("com.marklogic:mlcp:10.0.4.2") {
+    testImplementation 'ch.qos.logback:logback-classic:1.2.4'
+    testImplementation 'org.slf4j:log4j-over-slf4j:1.7.31'
+    testImplementation("com.marklogic:mlcp:10.0.6.2") {
       exclude group: 'org.apache.avro', module: 'avro-tools'
       exclude group: 'org.apache.commons', module: 'commons-csv'
     }
 
-    // Provides support for invoking marklogic-unit-test tests via JUnit
-    testImplementation ("com.marklogic:marklogic-junit5:1.0.0") {
-        // prefer the version declared above
-        exclude group: 'com.marklogic', module: 'marklogic-client-api'
-    }
-    mlBundle "com.marklogic:marklogic-unit-test-modules:1.0.0"
+    testImplementation "com.marklogic:marklogic-junit5:1.1.0"
+    mlBundle "com.marklogic:marklogic-unit-test-modules:1.1.0"
 }
 
 configurations.all {
@@ -277,22 +265,6 @@ publishing {
             }
             url publishUrl
         }
-    }
-}
-
-bintray {
-    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
-    key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
-    publications = ['main']
-    pkg {
-        repo = 'maven'
-        name = project.name
-        userOrg = 'marklogic'
-        desc = pomCustomizations.textdescription.text()
-        licenses = ['Apache-2.0']
-        websiteUrl = pomCustomizations.url
-        vcsUrl = pomCustomizations.scm.url
-        issueTrackerUrl = 'https://github.com/marklogic/marklogic-data-hub/issues'
     }
 }
 
