@@ -49,6 +49,9 @@ public class FlowController extends BaseController {
         "regardless of whether it's referenced or inline", response = FlowsWithStepDetails.class)
     @Secured("ROLE_readFlow")
     public ResponseEntity<JsonNode> getFlowsWithStepDetails() {
+        if (true) {
+            throw new RuntimeException("Hi!");
+        }
         return ResponseEntity.ok(newFlowService().getFlowsWithStepDetails());
     }
 
